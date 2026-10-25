@@ -1,0 +1,179 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>SigmaOS Office Suite</title>
+  <link rel="manifest" href="./manifest.json">
+  <meta name="theme-color" content="#2e7d32">
+  <meta name="description" content="Offline-first universal productivity suite for Chromium">
+  <link rel="stylesheet" href="./css/office.css">
+</head>
+<body>
+  <!-- Top Navigation Header -->
+  <header class="office-header">
+    <div class="brand-section">
+      <img src="./icons/icon-192.svg" alt="SigmaOS Logo" width="28" height="28" style="vertical-align: middle;">
+      <span class="brand-title">SigmaOS Office</span>
+    </div>
+
+    <nav class="nav-tabs">
+      <button class="nav-tab active" data-target="panel-writer">Writer</button>
+      <button class="nav-tab" data-target="panel-calc">Calc</button>
+      <button class="nav-tab" data-target="panel-impress">Impress</button>
+      <button class="nav-tab" data-target="panel-draw">Draw</button>
+      <button class="nav-tab" data-target="panel-math">Math</button>
+      <button class="nav-tab" data-target="panel-storage">Documents</button>
+    </nav>
+
+    <div class="header-actions">
+      <span id="offline-status" class="status-badge online">ONLINE (Cached)</span>
+      <button id="btn-open-file" class="btn-header">Open Disk File</button>
+    </div>
+  </header>
+
+  <!-- Main Application Body -->
+  <main class="office-main">
+
+    <!-- 1. Writer Panel (WordCraft / LibreOffice Writer) -->
+    <section id="panel-writer" class="app-panel active">
+      <div class="toolbar">
+        <button class="toolbar-btn" onclick="window.writerApp.execCommand('bold')"><b>B</b></button>
+        <button class="toolbar-btn" onclick="window.writerApp.execCommand('italic')"><i>I</i></button>
+        <button class="toolbar-btn" onclick="window.writerApp.execCommand('underline')"><u>U</u></button>
+        <div class="toolbar-divider"></div>
+        <button class="toolbar-btn" onclick="window.writerApp.execCommand('formatBlock', '<h1>')">H1</button>
+        <button class="toolbar-btn" onclick="window.writerApp.execCommand('formatBlock', '<h2>')">H2</button>
+        <button class="toolbar-btn" onclick="window.writerApp.execCommand('formatBlock', '<p>')">Body</button>
+        <div class="toolbar-divider"></div>
+        <button class="toolbar-btn" onclick="window.writerApp.execCommand('insertUnorderedList')">• Bullet</button>
+        <button class="toolbar-btn" onclick="window.writerApp.execCommand('insertOrderedList')">1. List</button>
+        <button class="toolbar-btn" onclick="window.writerApp.insertTable(3, 3)">Table</button>
+        <div class="toolbar-divider"></div>
+        <button id="btn-export-writer-wcf" class="toolbar-btn primary">Save .wcf</button>
+        <button id="btn-export-writer-md" class="toolbar-btn">Export .md</button>
+        <span id="writer-stats" style="margin-left:auto; font-size:12px; color:var(--text-muted);">0 words | 0 chars</span>
+      </div>
+      <div class="writer-container">
+        <div id="writer-editor" class="writer-paper" contenteditable="true" spellcheck="true">
+          <h1>SigmaOS WordCraft Document</h1>
+          <p>Welcome to <strong>SigmaOS Office Writer</strong>, running 100% offline in your Chromium browser.</p>
+          <p>Features:</p>
+          <ul>
+            <li>Client-side formatting and typography engine</li>
+            <li>Automatic persistence to IndexedDB</li>
+            <li>Direct save/export to native WordCraft (.wcf) and Markdown (.md)</li>
+          </ul>
+        </div>
+      </div>
+    </section>
+
+    <!-- 2. Calc Panel (GridCraft / LibreOffice Calc) -->
+    <section id="panel-calc" class="app-panel">
+      <div class="toolbar">
+        <button class="toolbar-btn primary" onclick="window.calcApp.recalculateAll()">Recalculate</button>
+        <button id="btn-export-calc-csv" class="toolbar-btn">Export .csv</button>
+        <button id="btn-export-calc-gcf" class="toolbar-btn primary">Save .gcf</button>
+      </div>
+      <div class="calc-formula-section">
+        <div id="calc-active-cell" class="cell-coord-display">A1</div>
+        <input id="calc-formula-bar" class="formula-input" placeholder="Enter value or formula e.g. =SUM(A1:A5)" spellcheck="false">
+      </div>
+      <div class="calc-grid-wrapper">
+        <table id="calc-grid" class="calc-table"></table>
+      </div>
+    </section>
+
+    <!-- 3. Impress Panel (DeckCraft / LibreOffice Impress) -->
+    <section id="panel-impress" class="app-panel">
+      <div class="toolbar">
+        <button class="toolbar-btn primary" onclick="window.impressApp.addSlide()">+ Add Slide</button>
+        <button class="toolbar-btn" onclick="window.impressApp.deleteSlide()">Delete Slide</button>
+        <div class="toolbar-divider"></div>
+        <button class="toolbar-btn" onclick="window.impressApp.startPresentation()">Present (F5)</button>
+        <button id="btn-export-impress-dcf" class="toolbar-btn primary">Save .dcf</button>
+      </div>
+      <div class="impress-layout">
+        <div id="impress-thumbnails" class="slide-sidebar"></div>
+        <div class="impress-center">
+          <div id="impress-stage"></div>
+        </div>
+      </div>
+      <div class="impress-notes-panel">
+        <strong style="font-size:11px; margin-bottom:4px; color:var(--text-muted);">Speaker Notes</strong>
+        <textarea id="impress-notes" class="notes-textarea" placeholder="Add presenter notes here..."></textarea>
+      </div>
+    </section>
+
+    <!-- 4. Draw Panel (VectorCraft / LibreOffice Draw) -->
+    <section id="panel-draw" class="app-panel">
+      <div class="toolbar">
+        <button class="toolbar-btn primary" onclick="window.drawApp.setTool('rect')">Rectangle</button>
+        <button class="toolbar-btn" onclick="window.drawApp.setTool('ellipse')">Ellipse</button>
+        <button class="toolbar-btn" onclick="window.drawApp.setTool('line')">Line</button>
+        <div class="toolbar-divider"></div>
+        <button class="toolbar-btn" onclick="window.drawApp.clearCanvas()">Clear</button>
+        <button id="btn-export-draw-svg" class="toolbar-btn primary">Export SVG</button>
+      </div>
+      <div class="draw-container">
+        <svg id="draw-canvas" class="draw-svg" width="800" height="600" viewBox="0 0 800 600"></svg>
+      </div>
+    </section>
+
+    <!-- 5. Math Panel (MathCraft / LibreOffice Math) -->
+    <section id="panel-math" class="app-panel">
+      <div class="toolbar">
+        <span style="font-size:12px; font-weight:700;">Formula Editor</span>
+      </div>
+      <div class="math-layout">
+        <div class="math-symbols-bar">
+          <button class="sym-btn" onclick="window.mathApp.insertSymbol('\\alpha')">α</button>
+          <button class="sym-btn" onclick="window.mathApp.insertSymbol('\\beta')">β</button>
+          <button class="sym-btn" onclick="window.mathApp.insertSymbol('\\gamma')">γ</button>
+          <button class="sym-btn" onclick="window.mathApp.insertSymbol('\\pi')">π</button>
+          <button class="sym-btn" onclick="window.mathApp.insertSymbol('\\sum')">∑</button>
+          <button class="sym-btn" onclick="window.mathApp.insertSymbol('\\int')">∫</button>
+          <button class="sym-btn" onclick="window.mathApp.insertSymbol('\\sqrt{x}')">√</button>
+          <button class="sym-btn" onclick="window.mathApp.insertSymbol('\\frac{a}{b}')">a/b</button>
+          <button class="sym-btn" onclick="window.mathApp.insertSymbol('\\pm')">±</button>
+          <button class="sym-btn" onclick="window.mathApp.insertSymbol('\\approx')">≈</button>
+          <button class="sym-btn" onclick="window.mathApp.insertSymbol('\\infty')">∞</button>
+        </div>
+        <textarea id="math-latex-input" class="math-input" placeholder="Type LaTeX formula e.g. \sum x^2 + \alpha = \beta">\sum_{i=1}^n x_i + \alpha = \beta</textarea>
+        <div id="math-preview" class="math-preview-card"></div>
+      </div>
+    </section>
+
+    <!-- 6. Local Storage / Documents Panel -->
+    <section id="panel-storage" class="app-panel">
+      <div class="storage-layout">
+        <h2>Offline Documents (IndexedDB & Local Cache)</h2>
+        <p style="color:var(--text-muted); font-size:13px; margin-top:4px;">
+          All documents are stored locally inside the browser. No cloud connection or remote server required.
+        </p>
+        <table class="doc-table">
+          <thead>
+            <tr>
+              <th>Title</th>
+              <th>Suite Engine</th>
+              <th>Last Modified</th>
+              <th>Actions</th>
+            </tr>
+          </thead>
+          <tbody id="doc-list-body"></tbody>
+        </table>
+      </div>
+    </section>
+
+  </main>
+
+  <!-- Application Logic -->
+  <script src="./js/storage_engine.js"></script>
+  <script src="./js/writer_web.js"></script>
+  <script src="./js/calc_web.js"></script>
+  <script src="./js/impress_web.js"></script>
+  <script src="./js/draw_web.js"></script>
+  <script src="./js/math_web.js"></script>
+  <script src="./js/app.js"></script>
+</body>
+</html>

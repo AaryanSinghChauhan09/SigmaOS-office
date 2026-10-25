@@ -1,0 +1,52 @@
+{
+  "name": "SigmaOS Office Suite",
+  "short_name": "SigmaOffice",
+  "description": "Offline-first universal productivity suite inspired by LibreOffice, OnlyOffice, GenOffice, and CraftOffice",
+  "start_url": "./index.html",
+  "display": "standalone",
+  "background_color": "#1e1e2e",
+  "theme_color": "#2e7d32",
+  "orientation": "any",
+  "icons": [
+    {
+      "src": "./icons/icon-192.svg",
+      "sizes": "192x192",
+      "type": "image/svg+xml"
+    },
+    {
+      "src": "./icons/icon-512.svg",
+      "sizes": "512x512",
+      "type": "image/svg+xml"
+    }
+  ],
+  "file_handlers": [
+    {
+      "action": "./index.html?app=writer",
+      "name": "WordCraft & Office Documents",
+      "accept": {
+        "application/vnd.oasis.opendocument.text": [".odt"],
+        "application/vnd.openxmlformats-officedocument.wordprocessingml.document": [".docx"],
+        "application/json": [".wcf"]
+      }
+    },
+    {
+      "action": "./index.html?app=calc",
+      "name": "GridCraft & Spreadsheets",
+      "accept": {
+        "application/vnd.oasis.opendocument.spreadsheet": [".ods"],
+        "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet": [".xlsx"],
+        "text/csv": [".csv"],
+        "application/json": [".gcf"]
+      }
+    },
+    {
+      "action": "./index.html?app=impress",
+      "name": "DeckCraft & Presentations",
+      "accept": {
+        "application/vnd.oasis.opendocument.presentation": [".odp"],
+        "application/vnd.openxmlformats-officedocument.presentationml.presentation": [".pptx"],
+        "application/json": [".dcf"]
+      }
+    }
+  ]
+}

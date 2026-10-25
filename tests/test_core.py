@@ -142,6 +142,13 @@ class TestCore(unittest.TestCase):
             output = fake_out.getvalue()
             self.assertIn("Generated Token:", output)
 
+    def test_cli_web(self):
+        with patch("sys.stdout", new=StringIO()) as fake_out:
+            code = core.main(["web", "--verify"])
+            self.assertEqual(code, 0)
+            output = fake_out.getvalue()
+            self.assertIn("offline web assets verified", output)
+
     def test_cli_self_test(self):
         with patch("sys.stdout", new=StringIO()) as fake_out:
             code = core.main(["self-test"])

@@ -39,17 +39,18 @@ from odf_ooxml_engine import ODFPackageBuilder, OOXMLPackageBuilder, PackageInsp
 from uno_macro_engine import XComponentContext, XMultiComponentFactory, MacroRunner
 from bibliography_toc_engine import TableOfContents, BibliographyManager, FootnoteManager, BibEntry
 from collab_security import MerkleAuditLog, DocumentTokenManager, VisualDiffEngine, WatermarkSpec
+from web_exporter import WebExporter
 
 ENGINE = {
     "name": "sigma-office",
     "summary": "Unified Office Suite and Document Platform for SigmaOS",
-    "version": "2.1.0",
+    "version": "2.2.0",
     "language": "python",
     "verbs": [
         "apply-plan", "icons", "mapping", "verify",
         "writer", "calc", "impress", "draw", "math",
         "base", "gen", "collab", "craft", "odf", "ooxml",
-        "macro", "toc", "bib", "diff", "token", "self-test",
+        "macro", "toc", "bib", "diff", "token", "web", "self-test",
     ],
     "principles": [
         "Separation of Concerns", "Defensive Programming",
@@ -266,6 +267,13 @@ def build_parser() -> argparse.ArgumentParser:
     tk.add_argument("--doc-id", default="doc_123")
     tk.add_argument("--user-id", default="user_alice")
 
+    # Web CLI (Offline Chromium PWA)
+    wb = sub.add_parser("web", help="offline Chromium web suite server and exporter")
+    wb.add_argument("--verify", action="store_true", help="verify offline web assets")
+    wb.add_argument("--export", metavar="DIR", help="export web suite bundle to directory")
+    wb.add_argument("--serve", action="store_true", help="start offline local HTTP server")
+    wb.add_argument("--port", type=int, default=8080, help="port for local HTTP server (default: 8080)")
+
     # Self-test CLI
     st = sub.add_parser("self-test", help="run deterministic test suites across all engines")
 
@@ -458,6 +466,27 @@ def main(argv: Optional[List[str]] = None) -> int:
                 print("Generated Token:", tok)
             return 0
 
+        # Web (Offline Chromium PWA)
+        elif args.cmd == "web":
+            if args.verify:
+                res = WebExporter.verify_offline_assets()
+                if res["ok"]:
+                    print(f"ok: all {res['total_assets']} offline web assets verified (0 external dependencies)")
+                    return 0
+                print(f"error: missing assets: {res['missing']}, external urls: {res['external_urls']}", file=sys.stderr)
+                return 1
+            elif args.export:
+                dest = WebExporter.export_bundle(args.export)
+                print(f"Exported offline web suite to: {dest}")
+                return 0
+            elif args.serve:
+                WebExporter.start_server(port=args.port)
+                return 0
+            else:
+                res = WebExporter.verify_offline_assets()
+                print(f"SigmaOS Offline Web Suite: {res['total_assets']} assets ready.")
+                return 0
+
         # Self-Test
         elif args.cmd == "self-test":
             self_test()
@@ -622,6 +651,12 @@ def self_test() -> None:
     # Test Visual Diff
     diff_text = VisualDiffEngine.compute_word_diff("Hello old world", "Hello new world")
     assert "[DEL: old]" in diff_text and "[INS: new]" in diff_text
+
+    # 15. Test Offline Web Exporter & Chromium PWA Assets
+    web_res = WebExporter.verify_offline_assets()
+    assert web_res["ok"] is True
+    assert len(web_res["missing"]) == 0
+    assert len(web_res["external_urls"]) == 0
 
 
 if __name__ == "__main__":
