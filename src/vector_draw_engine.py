@@ -262,6 +262,87 @@ class TextShape(Shape):
         return f'<text id="{self.shape_id}" x="{self.x}" y="{self.y}" font-family="{self.font_family}" font-size="{self.font_size}" {self.fill.to_svg_attrs()}{tf}>{self.text}</text>'
 
 
+class BezierCurve(Shape):
+    """Cubic Bezier curve: start point (x1, y1), control point 1 (cx1, cy1), control point 2 (cx2, cy2), end point (x2, y2)."""
+    def __init__(self, shape_id: str, x1: float, y1: float, cx1: float, cy1: float,
+                 cx2: float, cy2: float, x2: float, y2: float,
+                 stroke: Optional[StrokeStyle] = None, transform: Optional[Transform] = None):
+        super().__init__(shape_id, stroke, FillStyle("none"), transform)
+        self.x1, self.y1 = x1, y1
+        self.cx1, self.cy1 = cx1, cy1
+        self.cx2, self.cy2 = cx2, cy2
+        self.x2, self.y2 = x2, y2
+
+    def sample_point(self, t: float) -> Tuple[float, float]:
+        """Compute point on cubic Bezier curve at parameter t in [0, 1]."""
+        u = 1.0 - t
+        tt = t * t
+        uu = u * u
+        uuu = uu * u
+        ttt = tt * t
+        x = uuu * self.x1 + 3 * uu * t * self.cx1 + 3 * u * tt * self.cx2 + ttt * self.x2
+        y = uuu * self.y1 + 3 * uu * t * self.cy1 + 3 * u * tt * self.cy2 + ttt * self.y2
+        return (x, y)
+
+    def bounding_box(self) -> Tuple[float, float, float, float]:
+        xs = [self.x1, self.cx1, self.cx2, self.x2]
+        ys = [self.y1, self.cy1, self.cy2, self.y2]
+        min_x, max_x = min(xs) + self.transform.tx, max(xs) + self.transform.tx
+        min_y, max_y = min(ys) + self.transform.ty, max(ys) + self.transform.ty
+        return (min_x, min_y, (max_x - min_x) * self.transform.sx, (max_y - min_y) * self.transform.sy)
+
+    def to_dict(self) -> Dict[str, Any]:
+        return {
+            "type": "bezier",
+            "id": self.shape_id,
+            "x1": self.x1, "y1": self.y1,
+            "cx1": self.cx1, "cy1": self.cy1,
+            "cx2": self.cx2, "cy2": self.cy2,
+            "x2": self.x2, "y2": self.y2,
+            "stroke": self.stroke.to_dict(),
+            "transform": self.transform.to_dict(),
+        }
+
+    def to_svg(self) -> str:
+        tf = f' transform="{self.transform.to_svg_attr()}"' if self.transform.to_svg_attr() else ""
+        d = f"M {self.x1} {self.y1} C {self.cx1} {self.cy1}, {self.cx2} {self.cy2}, {self.x2} {self.y2}"
+        return f'<path id="{self.shape_id}" d="{d}" {self.stroke.to_svg_attrs()} fill="none"{tf} />'
+
+
+class Polygon(Shape):
+    """Closed polygon specified by a sequence of (x, y) vertices."""
+    def __init__(self, shape_id: str, points: List[Tuple[float, float]],
+                 stroke: Optional[StrokeStyle] = None, fill: Optional[FillStyle] = None,
+                 transform: Optional[Transform] = None):
+        super().__init__(shape_id, stroke, fill, transform)
+        self.points = points
+
+    def bounding_box(self) -> Tuple[float, float, float, float]:
+        if not self.points:
+            return (0.0, 0.0, 0.0, 0.0)
+        xs = [p[0] for p in self.points]
+        ys = [p[1] for p in self.points]
+        min_x, max_x = min(xs) + self.transform.tx, max(xs) + self.transform.tx
+        min_y, max_y = min(ys) + self.transform.ty, max(ys) + self.transform.ty
+        return (min_x, min_y, (max_x - min_x) * self.transform.sx, (max_y - min_y) * self.transform.sy)
+
+    def to_dict(self) -> Dict[str, Any]:
+        return {
+            "type": "polygon",
+            "id": self.shape_id,
+            "points": self.points,
+            "stroke": self.stroke.to_dict(),
+            "fill": self.fill.to_dict(),
+            "transform": self.transform.to_dict(),
+        }
+
+    def to_svg(self) -> str:
+        tf = f' transform="{self.transform.to_svg_attr()}"' if self.transform.to_svg_attr() else ""
+        pts_str = " ".join(f"{x},{y}" for x, y in self.points)
+        return f'<polygon id="{self.shape_id}" points="{pts_str}" {self.stroke.to_svg_attrs()} {self.fill.to_svg_attrs()}{tf} />'
+
+
+
 class DrawingCanvas:
     """A vector drawing canvas (SVG compatible)."""
     def __init__(self, width: float = 800.0, height: float = 600.0, title: str = "Drawing"):
@@ -333,4 +414,8 @@ class DrawingCanvas:
                 canvas.add_shape(Connector(sid, tuple(sd["start"]), tuple(sd["end"]), sd.get("routing", "orthogonal"), stroke))
             elif st == "text":
                 canvas.add_shape(TextShape(sid, sd["text"], sd["x"], sd["y"], sd.get("font_family", "DejaVu Sans"), sd.get("font_size", 14.0), fill, tf))
+            elif st == "bezier":
+                canvas.add_shape(BezierCurve(sid, sd["x1"], sd["y1"], sd["cx1"], sd["cy1"], sd["cx2"], sd["cy2"], sd["x2"], sd["y2"], stroke, tf))
+            elif st == "polygon":
+                canvas.add_shape(Polygon(sid, [tuple(p) for p in sd.get("points", [])], stroke, fill, tf))
         return canvas

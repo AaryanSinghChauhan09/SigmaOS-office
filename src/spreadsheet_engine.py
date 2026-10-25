@@ -115,20 +115,77 @@ class Sheet:
         return result
 
     def calculate(self):
-        """Evaluate formulas across the sheet."""
-        for (r, c), cell in self.cells.items():
-            if cell.formula:
-                cell.computed = self._eval_formula(cell.formula)
+        """Evaluate formulas across the sheet with cycle detection."""
+        evaluating = set()
+
+        def evaluate_cell(coord_tuple):
+            if coord_tuple in evaluating:
+                raise ValueError(f"Circular reference detected at {format_cell_coord(*coord_tuple)}")
+            cell = self.cells.get(coord_tuple)
+            if cell and cell.formula:
+                evaluating.add(coord_tuple)
+                cell.computed = self._eval_formula(cell.formula, evaluating)
+                evaluating.remove(coord_tuple)
+
+        for coord in list(self.cells.keys()):
+            evaluate_cell(coord)
 
     def evaluate_all(self):
         self.calculate()
 
-    def _eval_formula(self, formula: str) -> Any:
+    def _eval_formula(self, formula: str, evaluating_stack: Optional[set] = None) -> Any:
         f = formula.strip()
-        m_func = re.match(r"^([A-Za-z]+)\((.*)\)$", f)
+        m_func = re.match(r"^([A-Za-z0-9_]+)\((.*)\)$", f)
         if m_func:
             func_name = m_func.group(1).upper()
             arg_str = m_func.group(2).strip()
+
+            # VLOOKUP(val, range, col_idx)
+            if func_name == "VLOOKUP":
+                args = [a.strip() for a in arg_str.split(",")]
+                if len(args) >= 3:
+                    lookup_val = self._eval_expr(args[0])
+                    rng_parts = args[1].split(":")
+                    col_idx = int(self._eval_expr(args[2])) - 1
+                    grid = self.get_range(rng_parts[0], rng_parts[1])
+                    for row in grid:
+                        if row and str(row[0]) == str(lookup_val):
+                            return row[col_idx] if col_idx < len(row) else None
+                    return None
+
+            # INDEX(range, row_idx, col_idx)
+            if func_name == "INDEX":
+                args = [a.strip() for a in arg_str.split(",")]
+                if len(args) >= 2:
+                    rng_parts = args[0].split(":")
+                    row_idx = int(self._eval_expr(args[1])) - 1
+                    col_idx = int(self._eval_expr(args[2])) - 1 if len(args) >= 3 else 0
+                    grid = self.get_range(rng_parts[0], rng_parts[1])
+                    if 0 <= row_idx < len(grid) and 0 <= col_idx < len(grid[row_idx]):
+                        return grid[row_idx][col_idx]
+                    return None
+
+            # String functions
+            if func_name == "CONCATENATE":
+                args = [str(self._eval_expr(a.strip())) for a in arg_str.split(",")]
+                return "".join(args)
+            if func_name == "UPPER":
+                return str(self._eval_expr(arg_str)).upper()
+            if func_name == "LOWER":
+                return str(self._eval_expr(arg_str)).lower()
+            if func_name == "TRIM":
+                return str(self._eval_expr(arg_str)).strip()
+            if func_name == "LEN":
+                return len(str(self._eval_expr(arg_str)))
+
+            # Math / Stats
+            if func_name == "ABS":
+                return abs(float(self._eval_expr(arg_str)))
+            if func_name == "ROUND":
+                args = [a.strip() for a in arg_str.split(",")]
+                v = float(self._eval_expr(args[0]))
+                digits = int(self._eval_expr(args[1])) if len(args) > 1 else 0
+                return round(v, digits)
 
             # Range argument: e.g. A1:A5
             if ":" in arg_str:
@@ -155,6 +212,12 @@ class Sheet:
                     return max(flat) if flat else 0.0
                 elif func_name == "COUNT":
                     return len(flat)
+                elif func_name == "STDEV":
+                    if len(flat) < 2:
+                        return 0.0
+                    avg = sum(flat) / len(flat)
+                    variance = sum((x - avg) ** 2 for x in flat) / (len(flat) - 1)
+                    return variance ** 0.5
 
             # Simple two-argument IF function: IF(condition, true_val, false_val)
             if func_name == "IF":
@@ -164,12 +227,22 @@ class Sheet:
                     return self._eval_expr(args[1]) if cond_val else self._eval_expr(args[2])
 
         # Simple arithmetic expressions e.g. "A1 + B1"
-        return self._eval_expr(f)
+        return self._eval_expr(f, evaluating_stack)
 
-    def _eval_expr(self, expr: str) -> Any:
+    def _eval_expr(self, expr: str, evaluating_stack: Optional[set] = None) -> Any:
         token = expr.strip()
         # Direct cell coordinate
         if re.match(r"^[A-Za-z]+\d+$", token):
+            c_cell = self.get_cell(token)
+            if c_cell and c_cell.formula and c_cell.computed is None:
+                coord_t = parse_cell_coord(token)
+                if evaluating_stack is not None:
+                    if coord_t in evaluating_stack:
+                        raise ValueError(f"Circular reference detected at {token}")
+                    evaluating_stack.add(coord_t)
+                c_cell.computed = self._eval_formula(c_cell.formula, evaluating_stack)
+                if evaluating_stack is not None and coord_t in evaluating_stack:
+                    evaluating_stack.remove(coord_t)
             return self.get_value(token) or 0
         # Direct number
         try:
@@ -182,8 +255,8 @@ class Sheet:
         for op in ("+", "-", "*", "/"):
             if op in token:
                 parts = token.split(op, 1)
-                left = self._eval_expr(parts[0])
-                right = self._eval_expr(parts[1])
+                left = self._eval_expr(parts[0], evaluating_stack)
+                right = self._eval_expr(parts[1], evaluating_stack)
                 try:
                     left, right = float(left), float(right)
                     if op == "+": return left + right

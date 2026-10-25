@@ -111,11 +111,37 @@ class TrackedChange:
         }
 
 
+class PageStyle:
+    """Document page layout, margins, and header/footer configuration."""
+    def __init__(self, orientation: str = "portrait", margin_top: float = 25.4,
+                 margin_bottom: float = 25.4, margin_left: float = 25.4, margin_right: float = 25.4,
+                 header_text: str = "", footer_text: str = ""):
+        self.orientation = orientation
+        self.margin_top = margin_top
+        self.margin_bottom = margin_bottom
+        self.margin_left = margin_left
+        self.margin_right = margin_right
+        self.header_text = header_text
+        self.footer_text = footer_text
+
+    def to_dict(self) -> Dict[str, Any]:
+        return {
+            "orientation": self.orientation,
+            "margin_top": self.margin_top,
+            "margin_bottom": self.margin_bottom,
+            "margin_left": self.margin_left,
+            "margin_right": self.margin_right,
+            "header_text": self.header_text,
+            "footer_text": self.footer_text,
+        }
+
+
 class Document:
     """Complete office document representation."""
     def __init__(self, title: str = "Untitled Document", author: str = "SigmaOS User"):
         self.title = title
         self.author = author
+        self.page_style = PageStyle()
         self.elements: List[Any] = []  # Paragraph or Table
         self.tracked_changes: List[TrackedChange] = []
         self.metadata: Dict[str, Any] = {

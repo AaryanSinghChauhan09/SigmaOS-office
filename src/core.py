@@ -1,46 +1,55 @@
-"""SigmaOS-office Unified Office Suite CLI and Integration Planner.
+"""SigmaOS-office Unified Office Suite CLI and Integration Platform.
 
 Integrates sub-engines inspired by OpenOffice, LibreOffice, GenOffice, OnlyOffice, and CraftOffice:
-- Writer (Document Engine: AST, text formatting, tables, tracked changes)
-- Calc (Spreadsheet Engine: DAG formula evaluation, cell ranges, CSV)
+- Writer (Document Engine: AST, text formatting, page styles, tables, tracked changes)
+- Calc (Spreadsheet Engine: DAG formula evaluation, OpenFormula VLOOKUP/INDEX, cell ranges, CSV)
 - Impress (Presentation Engine: Slide decks, layouts, transitions)
-- Draw (Vector Draw Engine: Shapes, connectors, transforms, SVG)
+- Draw (Vector Draw Engine: Shapes, Bezier curves, polygons, connectors, transforms, SVG)
 - Math (Formula Engine: LaTeX, MathML, Unicode math symbols)
 - Base (Database Engine: Relational tables, SQL-like query builder, reports)
 - GenOffice AI (Prompt-to-doc/deck, summarization, grammar/readability analysis)
-- OnlyOffice Collab (Operational Transform, threaded comments, presence, locks)
+- OnlyOffice Collab & Security (OT, Merkle hash chains, HMAC session tokens, visual diffs)
 - Craft Bridge (WordCraft .wcf, GridCraft .gcf, DeckCraft .dcf, VectorCraft .vcf, MathCraft .mcf)
+- ODF & OOXML Packaging (OpenDocument .odt/.ods and Office Open XML .docx/.xlsx)
+- UNO Scripting & Macros (Universal Network Objects, component contexts, event hooks)
+- Bibliography & TOC (Automatic Table of Contents, BibTeX parsing, APA/IEEE reference formatters)
 - Style & Icon Planner (Mint/Breeze/Elementary icon mapping and verification)
 
 Principles: Separation of Concerns, Defensive Programming, Fail-Fast, KISS, Deterministic Testing.
 """
 
 import argparse
+import io
 import json
 import os
 import re
 import sys
 from typing import List, Dict, Any, Optional
 
-from document_engine import Document, Paragraph, TextRun, Table as DocTable, CharacterStyle
+from document_engine import Document, Paragraph, TextRun, Table as DocTable, CharacterStyle, PageStyle
 from spreadsheet_engine import Spreadsheet, format_cell_coord
 from presentation_engine import SlideDeck, Slide, TextElement
-from vector_draw_engine import DrawingCanvas, Rectangle, Ellipse, Line, Connector, TextShape
+from vector_draw_engine import DrawingCanvas, Rectangle, Ellipse, Line, Connector, TextShape, BezierCurve, Polygon
 from database_engine import Database, Column, Table as DbTable
 from math_engine import MathFormula
 from genoffice_ai import GenOfficeAI
 from onlyoffice_collab import Operation, ChangeSet, OperationalTransform, CommentThread, DocumentLockManager, UserPresence
 from craft_bridge import CraftBridge
+from odf_ooxml_engine import ODFPackageBuilder, OOXMLPackageBuilder, PackageInspector
+from uno_macro_engine import XComponentContext, XMultiComponentFactory, MacroRunner
+from bibliography_toc_engine import TableOfContents, BibliographyManager, FootnoteManager, BibEntry
+from collab_security import MerkleAuditLog, DocumentTokenManager, VisualDiffEngine, WatermarkSpec
 
 ENGINE = {
     "name": "sigma-office",
     "summary": "Unified Office Suite and Document Platform for SigmaOS",
-    "version": "2.0.0",
+    "version": "2.1.0",
     "language": "python",
     "verbs": [
         "apply-plan", "icons", "mapping", "verify",
         "writer", "calc", "impress", "draw", "math",
-        "base", "gen", "collab", "craft", "self-test",
+        "base", "gen", "collab", "craft", "odf", "ooxml",
+        "macro", "toc", "bib", "diff", "token", "self-test",
     ],
     "principles": [
         "Separation of Concerns", "Defensive Programming",
@@ -222,6 +231,41 @@ def build_parser() -> argparse.ArgumentParser:
     cr = sub.add_parser("craft", help="convert and inspect CraftOffice formats (.wcf, .gcf, .dcf, etc.)")
     cr.add_argument("--inspect", help="JSON string or path to CraftOffice file")
 
+    # ODF CLI
+    od = sub.add_parser("odf", help="build or inspect OpenDocument packages (.odt, .ods)")
+    od.add_argument("--type", choices=["odt", "ods"], default="odt")
+    od.add_argument("--title", default="ODF Document")
+
+    # OOXML CLI
+    ox = sub.add_parser("ooxml", help="build or inspect Office Open XML packages (.docx, .xlsx)")
+    ox.add_argument("--type", choices=["docx", "xlsx"], default="docx")
+    ox.add_argument("--title", default="OOXML Document")
+
+    # Macro CLI
+    mc = sub.add_parser("macro", help="execute sandboxed Python macro in UNO context")
+    mc.add_argument("--code", required=True, help="Python macro code snippet")
+
+    # TOC CLI
+    tc = sub.add_parser("toc", help="generate Table of Contents from document headings")
+    tc.add_argument("--sample", action="store_true", help="generate sample TOC")
+
+    # Bibliography CLI
+    bb = sub.add_parser("bib", help="parse BibTeX and format reference list")
+    bb.add_argument("--bibtex", help="BibTeX snippet")
+    bb.add_argument("--style", choices=["APA", "IEEE"], default="APA")
+
+    # Visual Diff CLI
+    df = sub.add_parser("diff", help="compute visual word diff between two texts")
+    df.add_argument("text_a", help="original text")
+    df.add_argument("text_b", help="modified text")
+
+    # Token CLI
+    tk = sub.add_parser("token", help="generate or verify OnlyOffice-style session token")
+    tk.add_argument("--generate", action="store_true", help="generate token")
+    tk.add_argument("--secret", default="sigma_office_secret_key")
+    tk.add_argument("--doc-id", default="doc_123")
+    tk.add_argument("--user-id", default="user_alice")
+
     # Self-test CLI
     st = sub.add_parser("self-test", help="run deterministic test suites across all engines")
 
@@ -302,6 +346,7 @@ def main(argv: Optional[List[str]] = None) -> int:
             canvas.add_shape(Rectangle("rect1", 50, 50, 200, 100))
             canvas.add_shape(Ellipse("circle1", 400, 100, 50, 50))
             canvas.add_shape(Connector("conn1", (250, 100), (350, 100)))
+            canvas.add_shape(BezierCurve("curve1", 50, 300, 150, 200, 250, 400, 350, 300))
             print(canvas.to_svg())
             return 0
 
@@ -357,6 +402,62 @@ def main(argv: Optional[List[str]] = None) -> int:
                 print(f"Detected Format: {fmt}")
             return 0
 
+        # ODF
+        elif args.cmd == "odf":
+            doc = Document(title=args.title)
+            doc.add_paragraph("OpenDocument generated package.")
+            pkg = ODFPackageBuilder.build_odt(doc)
+            info = PackageInspector.inspect_archive(pkg)
+            print(f"Built ODF Package: {info['format']}, Files: {info['file_count']}")
+            return 0
+
+        # OOXML
+        elif args.cmd == "ooxml":
+            doc = Document(title=args.title)
+            doc.add_paragraph("Office Open XML generated package.")
+            pkg = OOXMLPackageBuilder.build_docx(doc)
+            info = PackageInspector.inspect_archive(pkg)
+            print(f"Built OOXML Package: {info['format']}, Files: {info['file_count']}")
+            return 0
+
+        # Macro
+        elif args.cmd == "macro":
+            runner = MacroRunner()
+            doc = Document(title="Macro Target")
+            res = runner.execute_snippet(args.code, doc)
+            print("Macro Scope:", res)
+            return 0
+
+        # TOC
+        elif args.cmd == "toc":
+            doc = Document(title="Guide")
+            doc.add_heading("Architecture", level=1)
+            doc.add_heading("Subsystems", level=2)
+            entries = TableOfContents.generate_toc(doc)
+            print(TableOfContents.render_markdown(entries))
+            return 0
+
+        # Bibliography
+        elif args.cmd == "bib":
+            sample = args.bibtex or '@article{knuth1984, author={Donald Knuth}, title={Literate Programming}, year={1984}, journal={Computer Journal}}'
+            bm = BibliographyManager()
+            bm.parse_bibtex(sample)
+            print(bm.generate_reference_list(style=args.style))
+            return 0
+
+        # Diff
+        elif args.cmd == "diff":
+            diff = VisualDiffEngine.compute_word_diff(args.text_a, args.text_b)
+            print("Visual Diff:", diff)
+            return 0
+
+        # Token
+        elif args.cmd == "token":
+            if args.generate:
+                tok = DocumentTokenManager.generate_token(args.secret, args.doc_id, args.user_id)
+                print("Generated Token:", tok)
+            return 0
+
         # Self-Test
         elif args.cmd == "self-test":
             self_test()
@@ -365,7 +466,7 @@ def main(argv: Optional[List[str]] = None) -> int:
 
         return 0
 
-    except (StyleError, OSError, ValueError) as e:
+    except (StyleError, OSError, ValueError, KeyError) as e:
         print(f"error: {e}", file=sys.stderr)
         return 1
 
@@ -390,8 +491,9 @@ def self_test() -> None:
     full = verify(plan, need)
     assert full["ok"] is True and full["missing"] == []
 
-    # 2. Test Document Engine
+    # 2. Test Document Engine & PageStyle
     doc = Document(title="Test Architecture", author="Architect")
+    assert doc.page_style.orientation == "portrait"
     p = Paragraph(heading_level=1)
     p.runs.append(TextRun("SigmaOS Office Suite", CharacterStyle(bold=True)))
     doc.add_element(p)
@@ -404,13 +506,17 @@ def self_test() -> None:
     assert doc_reconstructed.title == "Test Architecture"
     assert doc_reconstructed.word_count() > 0
 
-    # 3. Test Spreadsheet Engine
+    # 3. Test Spreadsheet Engine & OpenFormula
     sheet = Spreadsheet(title="Financials")
     sheet.set_cell("A1", 100)
     sheet.set_cell("A2", 250)
     sheet.set_cell("A3", "=SUM(A1:A2)")
+    sheet.set_cell("E1", "Widget")
+    sheet.set_cell("F1", 99)
+    sheet.set_cell("G1", '=VLOOKUP("Widget", E1:F1, 2)')
     sheet.evaluate_all()
     assert sheet.get_cell_value("A3") == 350
+    assert sheet.get_cell_value("G1") == 99
 
     # 4. Test Presentation Engine
     deck = SlideDeck(title="Quarterly Review")
@@ -426,12 +532,14 @@ def self_test() -> None:
     assert "α" in mf.to_unicode_text()
     assert "<math" in mf.to_mathml()
 
-    # 6. Test Vector Draw Engine
+    # 6. Test Vector Draw Engine with Bezier and Polygon
     canvas = DrawingCanvas(width=400, height=300)
     canvas.add_shape(Rectangle("r1", 10, 10, 50, 50))
     canvas.add_shape(Connector("c1", (10, 10), (100, 100)))
+    canvas.add_shape(BezierCurve("bz1", 0, 0, 20, 50, 80, 50, 100, 0))
+    canvas.add_shape(Polygon("poly1", [(0, 0), (10, 0), (5, 10)]))
     svg = canvas.to_svg()
-    assert "<svg" in svg and "<rect" in svg and "<path" in svg
+    assert "<svg" in svg and "<rect" in svg and "<polygon" in svg
 
     # 7. Test Database Engine
     db = Database("OfficeStore")
@@ -476,6 +584,44 @@ def self_test() -> None:
     assert sheet_from_gcf.get_cell_value("A3") == 350
     assert CraftBridge.detect_format(wcf) == "SigmaOS.WordCraft"
     assert CraftBridge.detect_format(gcf) == "SigmaOS.GridCraft"
+
+    # 11. Test ODF & OOXML Packaging
+    odt_bytes = ODFPackageBuilder.build_odt(doc)
+    assert len(odt_bytes) > 100
+    odt_info = PackageInspector.inspect_archive(odt_bytes)
+    assert "ODF" in odt_info["format"]
+    docx_bytes = OOXMLPackageBuilder.build_docx(doc)
+    assert len(docx_bytes) > 100
+    docx_info = PackageInspector.inspect_archive(docx_bytes)
+    assert "OOXML" in docx_info["format"]
+
+    # 12. Test UNO Scripting & Macros
+    runner = MacroRunner()
+    res = runner.execute_snippet("output = 40 + 2", doc)
+    assert res["output"] == 42
+
+    # 13. Test Bibliography & TOC
+    toc_entries = TableOfContents.generate_toc(doc)
+    assert len(toc_entries) >= 1
+    bm = BibliographyManager()
+    bm.parse_bibtex('@article{lamport78, author={Leslie Lamport}, title={Time and Clocks}, year={1978}}')
+    ref_md = bm.generate_reference_list(style="APA")
+    assert "Leslie Lamport" in ref_md
+
+    # 14. Test Collab Security & Hash Chain
+    audit = MerkleAuditLog()
+    cs = ChangeSet(revision=1, user_id="alice", operations=[op_ins1])
+    audit.append_changeset(cs, "Initial insertion")
+    assert audit.verify_integrity() is True
+
+    # Test Session Token
+    token = DocumentTokenManager.generate_token("test_secret", "doc1", "user1")
+    verified = DocumentTokenManager.verify_token(token, "test_secret")
+    assert verified["doc_id"] == "doc1" and verified["user_id"] == "user1"
+
+    # Test Visual Diff
+    diff_text = VisualDiffEngine.compute_word_diff("Hello old world", "Hello new world")
+    assert "[DEL: old]" in diff_text and "[INS: new]" in diff_text
 
 
 if __name__ == "__main__":

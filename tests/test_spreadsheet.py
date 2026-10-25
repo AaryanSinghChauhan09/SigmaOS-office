@@ -99,6 +99,47 @@ class TestSpreadsheetEngine(unittest.TestCase):
         self.assertEqual(s1.get_value("A1"), 500)
         self.assertEqual(s2.get_value("A1"), 700)
 
+    def test_openformula_functions(self):
+        # Arrange
+        sheet = Sheet("Formulas")
+        sheet.set_cell("A1", "Alpha")
+        sheet.set_cell("B1", 100)
+        sheet.set_cell("A2", "Beta")
+        sheet.set_cell("B2", 200)
+
+        # Act
+        sheet.set_cell("C1", '=VLOOKUP("Beta", A1:B2, 2)')
+        sheet.set_cell("C2", '=INDEX(A1:B2, 1, 2)')
+        sheet.set_cell("C3", '=CONCATENATE("Hello ", "World")')
+        sheet.set_cell("C4", '=UPPER("sigmaos")')
+        sheet.set_cell("C5", '=LOWER("OFFICE")')
+        sheet.set_cell("C6", '=LEN("test")')
+        sheet.set_cell("C7", '=ABS(-42.5)')
+        sheet.set_cell("C8", '=ROUND(3.14159, 2)')
+        sheet.set_cell("C9", '=STDEV(B1:B2)')
+        sheet.calculate()
+
+        # Assert
+        self.assertEqual(sheet.get_value("C1"), 200)
+        self.assertEqual(sheet.get_value("C2"), 100)
+        self.assertEqual(sheet.get_value("C3"), "Hello World")
+        self.assertEqual(sheet.get_value("C4"), "SIGMAOS")
+        self.assertEqual(sheet.get_value("C5"), "office")
+        self.assertEqual(sheet.get_value("C6"), 4)
+        self.assertEqual(sheet.get_value("C7"), 42.5)
+        self.assertEqual(sheet.get_value("C8"), 3.14)
+        self.assertAlmostEqual(sheet.get_value("C9"), 70.71, places=1)
+
+    def test_circular_reference_detection(self):
+        # Arrange
+        sheet = Sheet("Cycle")
+        sheet.set_cell("A1", "=B1 + 1")
+        sheet.set_cell("B1", "=A1 + 1")
+
+        # Act & Assert
+        with self.assertRaises(ValueError):
+            sheet.calculate()
+
 
 if __name__ == "__main__":
     unittest.main()

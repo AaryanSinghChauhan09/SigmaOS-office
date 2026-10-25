@@ -93,6 +93,55 @@ class TestCore(unittest.TestCase):
             output = fake_out.getvalue()
             self.assertIn("OT Transformation Result", output)
 
+    def test_cli_odf(self):
+        with patch("sys.stdout", new=StringIO()) as fake_out:
+            code = core.main(["odf", "--title", "CLI ODF Doc"])
+            self.assertEqual(code, 0)
+            output = fake_out.getvalue()
+            self.assertIn("Built ODF Package: ODF:", output)
+
+    def test_cli_ooxml(self):
+        with patch("sys.stdout", new=StringIO()) as fake_out:
+            code = core.main(["ooxml", "--title", "CLI Word Doc"])
+            self.assertEqual(code, 0)
+            output = fake_out.getvalue()
+            self.assertIn("Built OOXML Package: OOXML:", output)
+
+    def test_cli_macro(self):
+        with patch("sys.stdout", new=StringIO()) as fake_out:
+            code = core.main(["macro", "--code", "res = 20 * 2"])
+            self.assertEqual(code, 0)
+            output = fake_out.getvalue()
+            self.assertIn("'res': 40", output)
+
+    def test_cli_toc(self):
+        with patch("sys.stdout", new=StringIO()) as fake_out:
+            code = core.main(["toc", "--sample"])
+            self.assertEqual(code, 0)
+            output = fake_out.getvalue()
+            self.assertIn("# Table of Contents", output)
+
+    def test_cli_bib(self):
+        with patch("sys.stdout", new=StringIO()) as fake_out:
+            code = core.main(["bib"])
+            self.assertEqual(code, 0)
+            output = fake_out.getvalue()
+            self.assertIn("Donald Knuth", output)
+
+    def test_cli_diff(self):
+        with patch("sys.stdout", new=StringIO()) as fake_out:
+            code = core.main(["diff", "hello world", "hello sigmaos"])
+            self.assertEqual(code, 0)
+            output = fake_out.getvalue()
+            self.assertIn("[DEL: world] [INS: sigmaos]", output)
+
+    def test_cli_token(self):
+        with patch("sys.stdout", new=StringIO()) as fake_out:
+            code = core.main(["token", "--generate"])
+            self.assertEqual(code, 0)
+            output = fake_out.getvalue()
+            self.assertIn("Generated Token:", output)
+
     def test_cli_self_test(self):
         with patch("sys.stdout", new=StringIO()) as fake_out:
             code = core.main(["self-test"])
