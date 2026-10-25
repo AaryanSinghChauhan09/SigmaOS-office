@@ -461,9 +461,174 @@ class CalcWeb {
         }
         return 0;
       }
+
+      // Lookup & Reference Functions (LibreOffice / Excel parity)
+      if (fn === 'VLOOKUP' && argList.length >= 3) {
+        const lookupVal = String(this.evalExpr(argList[0])).toLowerCase();
+        const rangeStr = argList[1].trim();
+        const colIdx = parseInt(this.evalExpr(argList[2])) - 1;
+        if (rangeStr.includes(':')) {
+          const [start, end] = rangeStr.split(':');
+          const s = this.parseCoord(start.trim()), e = this.parseCoord(end.trim());
+          if (s && e) {
+            for (let r = s[0]; r <= e[0]; r++) {
+              const firstVal = String(this.getCellValue(`${this.colName(s[1])}${r}`)).toLowerCase();
+              if (firstVal === lookupVal) {
+                return this.getCellValue(`${this.colName(s[1] + colIdx)}${r}`);
+              }
+            }
+          }
+        }
+        return '#N/A';
+      }
+
+      if (fn === 'INDEX' && argList.length >= 2) {
+        const rangeStr = argList[0].trim();
+        const rowIdx = parseInt(this.evalExpr(argList[1])) - 1;
+        const colIdx = argList.length > 2 ? parseInt(this.evalExpr(argList[2])) - 1 : 0;
+        if (rangeStr.includes(':')) {
+          const [start] = rangeStr.split(':');
+          const s = this.parseCoord(start.trim());
+          if (s) {
+            return this.getCellValue(`${this.colName(s[1] + colIdx)}${s[0] + rowIdx}`);
+          }
+        }
+        return '#REF!';
+      }
+
+      if (fn === 'MATCH' && argList.length >= 2) {
+        const lookupVal = String(this.evalExpr(argList[0])).toLowerCase();
+        const rangeStr = argList[1].trim();
+        if (rangeStr.includes(':')) {
+          const [start, end] = rangeStr.split(':');
+          const vals = this.getRangeValues(start.trim(), end.trim());
+          for (let i = 0; i < vals.length; i++) {
+            if (String(vals[i]).toLowerCase() === lookupVal) return i + 1;
+          }
+        }
+        return '#N/A';
+      }
+
+      // Financial Functions
+      if (fn === 'PMT' && argList.length >= 3) {
+        const rate = Number(this.evalExpr(argList[0]));
+        const nper = Number(this.evalExpr(argList[1]));
+        const pv = Number(this.evalExpr(argList[2]));
+        if (rate === 0) return -(pv / nper);
+        const pmt = (rate * pv) / (1 - Math.pow(1 + rate, -nper));
+        return -pmt;
+      }
+
+      if (fn === 'FV' && argList.length >= 3) {
+        const rate = Number(this.evalExpr(argList[0]));
+        const nper = Number(this.evalExpr(argList[1]));
+        const pmt = Number(this.evalExpr(argList[2]));
+        const pv = argList.length > 3 ? Number(this.evalExpr(argList[3])) : 0;
+        if (rate === 0) return -(pv + pmt * nper);
+        return -(pv * Math.pow(1 + rate, nper) + pmt * (Math.pow(1 + rate, nper) - 1) / rate);
+      }
+
+      if (fn === 'PV' && argList.length >= 3) {
+        const rate = Number(this.evalExpr(argList[0]));
+        const nper = Number(this.evalExpr(argList[1]));
+        const pmt = Number(this.evalExpr(argList[2]));
+        const fv = argList.length > 3 ? Number(this.evalExpr(argList[3])) : 0;
+        if (rate === 0) return -(fv + pmt * nper);
+        return -(fv + pmt * (Math.pow(1 + rate, nper) - 1) / rate) / Math.pow(1 + rate, nper);
+      }
+
+      // Engineering & Bitwise Functions
+      if (fn === 'FACT') {
+        const n = Math.floor(Number(this.evalExpr(argList[0])));
+        if (n < 0) return '#NUM!';
+        let res = 1; for (let i = 2; i <= n; i++) res *= i; return res;
+      }
+
+      if (fn === 'GCD' && argList.length >= 2) {
+        const gcd2 = (a, b) => b === 0 ? a : gcd2(b, a % b);
+        return argList.map(a => Math.abs(Number(this.evalExpr(a)))).reduce((a, b) => gcd2(a, b));
+      }
+
+      if (fn === 'LCM' && argList.length >= 2) {
+        const gcd2 = (a, b) => b === 0 ? a : gcd2(b, a % b);
+        const lcm2 = (a, b) => (a === 0 || b === 0) ? 0 : Math.abs(a * b) / gcd2(a, b);
+        return argList.map(a => Math.abs(Number(this.evalExpr(a)))).reduce((a, b) => lcm2(a, b));
+      }
+
+      if (fn === 'BIN2DEC') return parseInt(String(this.evalExpr(argList[0])), 2);
+      if (fn === 'DEC2BIN') return (Number(this.evalExpr(argList[0])) >>> 0).toString(2);
+      if (fn === 'HEX2DEC') return parseInt(String(this.evalExpr(argList[0])), 16);
+      if (fn === 'DEC2HEX') return (Number(this.evalExpr(argList[0])) >>> 0).toString(16).toUpperCase();
     }
 
     return this.evalExpr(formula.trim());
+  }
+
+  // --- SVG Chart Generator (Bar, Line, Pie) ---
+  generateSVGChart(type = 'bar', labelRange = 'A1:A5', dataRange = 'B1:B5', title = 'Spreadsheet Chart') {
+    const parseR = (rStr) => {
+      if (!rStr.includes(':')) return [];
+      const [s, e] = rStr.split(':');
+      return this.getRangeValues(s.trim(), e.trim());
+    };
+    const labels = parseR(labelRange).map(v => String(v));
+    const data = parseR(dataRange).map(v => parseFloat(v) || 0);
+
+    const width = 560, height = 320, padding = 45;
+    const maxVal = Math.max(...data, 1);
+    const colors = ['#81c784', '#4dabf7', '#ffb74d', '#ba68c8', '#4db6ac', '#f06292', '#aed581'];
+
+    let inner = '';
+    if (type === 'bar') {
+      const barWidth = Math.max(12, Math.min(50, (width - padding * 2) / (data.length || 1) - 10));
+      data.forEach((val, i) => {
+        const x = padding + i * (barWidth + 10) + 10;
+        const barH = (val / maxVal) * (height - padding * 2);
+        const y = height - padding - barH;
+        const color = colors[i % colors.length];
+        inner += `<rect x="${x}" y="${y}" width="${barWidth}" height="${barH}" fill="${color}" rx="3"/>`;
+        inner += `<text x="${x + barWidth / 2}" y="${y - 6}" font-size="10" fill="#cdd6f4" text-anchor="middle">${val}</text>`;
+        inner += `<text x="${x + barWidth / 2}" y="${height - padding + 15}" font-size="10" fill="#a6adc8" text-anchor="middle">${labels[i] || ''}</text>`;
+      });
+      // Axis lines
+      inner += `<line x1="${padding}" y1="${height - padding}" x2="${width - padding}" y2="${height - padding}" stroke="#45475a" stroke-width="1"/>`;
+      inner += `<line x1="${padding}" y1="${padding}" x2="${padding}" y2="${height - padding}" stroke="#45475a" stroke-width="1"/>`;
+    } else if (type === 'line') {
+      let points = [];
+      data.forEach((val, i) => {
+        const x = padding + (i / Math.max(1, data.length - 1)) * (width - padding * 2);
+        const y = height - padding - (val / maxVal) * (height - padding * 2);
+        points.push(`${x},${y}`);
+        inner += `<circle cx="${x}" cy="${y}" r="4" fill="#81c784"/>`;
+        inner += `<text x="${x}" y="${y - 8}" font-size="10" fill="#cdd6f4" text-anchor="middle">${val}</text>`;
+        inner += `<text x="${x}" y="${height - padding + 15}" font-size="10" fill="#a6adc8" text-anchor="middle">${labels[i] || ''}</text>`;
+      });
+      inner += `<polyline points="${points.join(' ')}" fill="none" stroke="#81c784" stroke-width="2"/>`;
+      inner += `<line x1="${padding}" y1="${height - padding}" x2="${width - padding}" y2="${height - padding}" stroke="#45475a" stroke-width="1"/>`;
+      inner += `<line x1="${padding}" y1="${padding}" x2="${padding}" y2="${height - padding}" stroke="#45475a" stroke-width="1"/>`;
+    } else if (type === 'pie') {
+      const cx = width / 2, cy = height / 2, r = Math.min(width, height) / 3;
+      const total = data.reduce((a, b) => a + b, 0) || 1;
+      let startAngle = 0;
+      data.forEach((val, i) => {
+        const sliceAngle = (val / total) * 2 * Math.PI;
+        const endAngle = startAngle + sliceAngle;
+        const x1 = cx + r * Math.cos(startAngle);
+        const y1 = cy + r * Math.sin(startAngle);
+        const x2 = cx + r * Math.cos(endAngle);
+        const y2 = cy + r * Math.sin(endAngle);
+        const largeArc = sliceAngle > Math.PI ? 1 : 0;
+        const color = colors[i % colors.length];
+        const pathData = `M ${cx} ${cy} L ${x1} ${y1} A ${r} ${r} 0 ${largeArc} 1 ${x2} ${y2} Z`;
+        inner += `<path d="${pathData}" fill="${color}" stroke="#1e1e2e" stroke-width="1"/>`;
+        startAngle = endAngle;
+      });
+    }
+
+    return `<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}" viewBox="0 0 ${width} ${height}" style="background:#181825; border-radius:8px;">
+      <text x="${width / 2}" y="24" font-size="14" font-weight="bold" fill="#ffffff" text-anchor="middle">${title}</text>
+      ${inner}
+    </svg>`;
   }
 
   _splitArgs(argStr) {

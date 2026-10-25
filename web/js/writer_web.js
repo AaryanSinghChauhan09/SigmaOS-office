@@ -116,6 +116,40 @@ class WriterWeb {
     this.execCommand('insertHTML', `<img src="${dataURL}" style="max-width:100%; height:auto; display:block; margin:8px 0;" alt="Inserted image">`);
   }
 
+  // --- Callouts & Alerts (inspired by GitHub / Notion Callouts) ---
+  insertCallout(type = 'NOTE', text = 'Important note content goes here.') {
+    const borderColors = { NOTE: '#4dabf7', TIP: '#81c784', WARNING: '#ffb74d', CAUTION: '#e57373', IMPORTANT: '#ba68c8' };
+    const bgColors     = { NOTE: '#182438', TIP: '#162e20', WARNING: '#382b18', CAUTION: '#3b1c1c', IMPORTANT: '#2c1a38' };
+    const borderColor = borderColors[type] || '#4dabf7';
+    const bgColor = bgColors[type] || '#182438';
+    const html = `<div class="writer-callout" style="border-left: 4px solid ${borderColor}; background-color: ${bgColor}; padding: 12px 16px; margin: 14px 0; border-radius: 4px;">
+      <strong style="color: ${borderColor}; font-size: 13px;">[!${type}]</strong>
+      <p style="margin: 6px 0 0 0; font-size: 14px;">${text}</p>
+    </div><p><br></p>`;
+    this.execCommand('insertHTML', html);
+  }
+
+  insertCodeBlock(code = 'fn main() {\n    println!("Hello, SigmaOS!");\n}', lang = 'rust') {
+    const html = `<pre class="writer-code-block" style="background:#11111b; color:#cdd6f4; padding:12px; border-radius:6px; font-family:monospace; font-size:13px; margin:12px 0; overflow-x:auto;"><code>// ${lang}\n${code}</code></pre><p><br></p>`;
+    this.execCommand('insertHTML', html);
+  }
+
+  // --- Document Outline Navigator (LibreOffice Navigator-inspired) ---
+  getOutline() {
+    const headings = this.editor.querySelectorAll('h1, h2, h3');
+    const outline = [];
+    headings.forEach((h, idx) => {
+      const id = 'heading_' + idx;
+      h.id = id;
+      outline.push({
+        id,
+        level: parseInt(h.tagName.substring(1)),
+        text: h.innerText.trim() || 'Untitled Section'
+      });
+    });
+    return outline;
+  }
+
   // --- Find & Replace (inspired by LibreOffice Writer's Find toolbar) ---
   toggleFindReplace() {
     const panel = document.getElementById('writer-find-replace');
@@ -159,8 +193,9 @@ class WriterWeb {
   updateStats() {
     const wc = this.getWordCount();
     const cc = this.getCharacterCount();
+    const readMinutes = Math.max(1, Math.ceil(wc / 200));
     const el = document.getElementById('writer-stats');
-    if (el) el.textContent = `${wc} words | ${cc} chars`;
+    if (el) el.textContent = `${wc} words | ${cc} chars | ~${readMinutes} min read`;
     if (this.onWordCountChange) this.onWordCountChange(wc, cc);
   }
 

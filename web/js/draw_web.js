@@ -202,6 +202,15 @@ class DrawWeb {
       el.setAttribute('stroke', this.strokeColor);
       el.setAttribute('stroke-width', this.strokeWidth);
       el.setAttribute('marker-end', 'url(#arrow)');
+    } else if (this.currentTool === 'diamond') {
+      const elDiamond = document.createElementNS(ns, 'polygon');
+      elDiamond.dataset.sigmaTool = 'diamond';
+      elDiamond.setAttribute('data-sigma-shape', '1');
+      elDiamond.setAttribute('points', `${pos.x},${pos.y} ${pos.x},${pos.y} ${pos.x},${pos.y} ${pos.x},${pos.y}`);
+      elDiamond.setAttribute('fill', this.fillColor);
+      elDiamond.setAttribute('stroke', this.strokeColor);
+      elDiamond.setAttribute('stroke-width', this.strokeWidth);
+      return elDiamond;
     }
     return el;
   }
@@ -244,6 +253,14 @@ class DrawWeb {
     } else if (this.currentTool === 'line' || this.currentTool === 'arrow') {
       this.currentElement.setAttribute('x2', pos.x);
       this.currentElement.setAttribute('y2', pos.y);
+    } else if (this.currentTool === 'diamond') {
+      const minX = Math.min(this.startX, pos.x);
+      const minY = Math.min(this.startY, pos.y);
+      const w = Math.abs(pos.x - this.startX);
+      const h = Math.abs(pos.y - this.startY);
+      const midX = minX + w / 2;
+      const midY = minY + h / 2;
+      this.currentElement.setAttribute('points', `${midX},${minY} ${minX + w},${midY} ${midX},${minY + h} ${minX},${midY}`);
     }
   }
 
@@ -410,6 +427,33 @@ class DrawWeb {
       link.download = (this.title || 'drawing') + '.png';
       link.href = canvas.toDataURL('image/png');
       link.click();
+    };
+    img.src = url;
+  }
+
+  copyToClipboard() {
+    const svgData = this.exportSVG();
+    const blob = new Blob([svgData], { type: 'image/svg+xml' });
+    const url = URL.createObjectURL(blob);
+    const img = new Image();
+    const canvas = document.createElement('canvas');
+    canvas.width = this.svg.clientWidth || 800;
+    canvas.height = this.svg.clientHeight || 600;
+    img.onload = () => {
+      const ctx = canvas.getContext('2d');
+      ctx.fillStyle = '#ffffff';
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+      ctx.drawImage(img, 0, 0);
+      URL.revokeObjectURL(url);
+      canvas.toBlob((pngBlob) => {
+        if (pngBlob && navigator.clipboard && navigator.clipboard.write) {
+          navigator.clipboard.write([new ClipboardItem({ 'image/png': pngBlob })]).then(() => {
+            window.sigmaApp && window.sigmaApp.showNotification('Drawing copied to clipboard!', 'success');
+          }).catch(() => {
+            window.sigmaApp && window.sigmaApp.showNotification('Clipboard write restricted', 'info');
+          });
+        }
+      });
     };
     img.src = url;
   }

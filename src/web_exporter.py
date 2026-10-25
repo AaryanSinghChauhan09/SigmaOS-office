@@ -29,6 +29,7 @@ REQUIRED_WEB_ASSETS = [
     "js/impress_web.js",
     "js/draw_web.js",
     "js/math_web.js",
+    "js/base_web.js",
     "js/app.js",
 ]
 

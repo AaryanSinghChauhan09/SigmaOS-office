@@ -60,6 +60,14 @@
         "application/vnd.openxmlformats-officedocument.presentationml.presentation": [".pptx"],
         "application/json": [".dcf"]
       }
+    },
+    {
+      "action": "./index.html?app=base",
+      "name": "DataCraft & Relational Databases",
+      "accept": {
+        "application/sql": [".sql"],
+        "application/json": [".dbcf"]
+      }
     }
   ]
 }

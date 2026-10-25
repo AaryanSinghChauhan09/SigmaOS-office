@@ -762,6 +762,7 @@ body[data-theme="light"] .draw-container {
 .type-tag.impress { background-color: #f57c00; color: #fff; }
 .type-tag.draw { background-color: #7b1fa2; color: #fff; }
 .type-tag.math { background-color: #00796b; color: #fff; }
+.type-tag.base { background-color: #d84315; color: #fff; }
 
 .btn-action {
   padding: 4px 8px;
@@ -774,6 +775,115 @@ body[data-theme="light"] .draw-container {
 
 .btn-action.open { background-color: var(--accent-green); color: #fff; }
 .btn-action.delete { background-color: #c62828; color: #fff; }
+
+/* Base / DataCraft Styles */
+.base-container {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  background-color: var(--bg-dark);
+}
+
+.base-ribbon {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  background-color: var(--bg-sidebar);
+  border-bottom: 1px solid var(--border-color);
+  padding: 6px 12px;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.base-tables-list {
+  display: flex;
+  gap: 4px;
+}
+
+.base-table-btn {
+  background-color: var(--bg-panel);
+  color: var(--text-muted);
+  border: 1px solid var(--border-color);
+  border-radius: 4px;
+  padding: 4px 10px;
+  font-size: 11px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.base-table-btn.active {
+  background-color: #d84315;
+  color: #ffffff;
+  border-color: #d84315;
+}
+
+.base-table-btn.new-table {
+  border-style: dashed;
+}
+
+.base-actions {
+  display: flex;
+  gap: 6px;
+}
+
+.base-filter-bar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background-color: var(--bg-panel);
+  border-bottom: 1px solid var(--border-color);
+  padding: 6px 12px;
+}
+
+.base-grid-wrap {
+  flex: 1;
+  overflow: auto;
+}
+
+.base-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 12px;
+}
+
+.base-table th, .base-table td {
+  padding: 8px 10px;
+  border: 1px solid var(--border-color);
+  text-align: left;
+}
+
+.base-table th {
+  background-color: var(--bg-sidebar);
+  color: var(--text-muted);
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  user-select: none;
+}
+
+.col-type-tag {
+  font-size: 9px;
+  font-weight: 700;
+  padding: 1px 4px;
+  background-color: var(--border-color);
+  color: var(--accent-mint);
+  border-radius: 3px;
+  margin-left: 4px;
+}
+
+.base-table td[contenteditable="true"]:focus {
+  background-color: var(--border-color);
+  outline: 2px solid var(--accent-mint);
+}
+
+.btn-del-record {
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-size: 12px;
+  color: #e57373;
+}
 
 /* Command Palette Overlay */
 .cmd-palette-overlay {

@@ -24,6 +24,7 @@
       <button class="nav-tab" data-target="panel-impress">Impress</button>
       <button class="nav-tab" data-target="panel-draw">Draw</button>
       <button class="nav-tab" data-target="panel-math">Math</button>
+      <button class="nav-tab" data-target="panel-base">Base</button>
       <button class="nav-tab" data-target="panel-storage">Documents</button>
     </nav>
 
@@ -93,6 +94,8 @@
         <button class="toolbar-btn" onclick="window.writerApp.outdent()"  title="Decrease indent">|←</button>
         <button class="toolbar-btn" onclick="window.writerApp.insertTable(3,3)" title="Insert 3×3 table">⊞ Table</button>
         <button class="toolbar-btn" onclick="window.writerApp.insertHorizontalRule()" title="Horizontal rule">─ HR</button>
+        <button class="toolbar-btn" onclick="window.writerApp.insertCallout('NOTE')" title="Insert Callout box">💬 Callout</button>
+        <button class="toolbar-btn" onclick="window.writerApp.insertCodeBlock()" title="Insert code block">💻 Code</button>
         <div class="toolbar-divider"></div>
         <!-- Insert Link / Image -->
         <button class="toolbar-btn" id="btn-insert-link" title="Insert hyperlink">🔗 Link</button>
@@ -134,6 +137,7 @@
         <div class="toolbar-divider"></div>
         <button class="toolbar-btn" onclick="window.calcApp.setCellFormat(window.calcApp.activeCoord, {bold:true})" title="Bold cell"><b>B</b></button>
         <button class="toolbar-btn" onclick="window.calcApp.setCellFormat(window.calcApp.activeCoord, {italic:true})" title="Italic cell"><i>I</i></button>
+        <button id="btn-calc-chart" class="toolbar-btn" title="Generate SVG chart">📊 Chart</button>
         <div class="toolbar-divider"></div>
         <button id="btn-export-calc-csv" class="toolbar-btn" title="Export as CSV">📋 .csv</button>
         <button id="btn-export-calc-gcf" class="toolbar-btn primary" title="Save as GridCraft (.gcf)">💾 .gcf</button>
@@ -161,6 +165,15 @@
         <div class="toolbar-divider"></div>
         <!-- Slide background color -->
         <label class="color-pick-label" title="Slide background color">🎨 <input id="impress-slide-bg" type="color" value="#1e3a5f" class="color-pick-input"></label>
+        <div class="toolbar-divider"></div>
+        <!-- Slide Layout Preset -->
+        <select class="toolbar-select" onchange="window.impressApp.applyLayout(window.impressApp.activeSlideIdx, this.value)" title="Slide layout">
+          <option value="content">Content Layout</option>
+          <option value="title">Title Layout</option>
+          <option value="two-column">Two Columns</option>
+          <option value="quote">Quote Block</option>
+          <option value="stat">Big Stat / Metric</option>
+        </select>
         <div class="toolbar-divider"></div>
         <!-- Transition picker -->
         <select class="toolbar-select" onchange="window.impressApp.setTransition(window.impressApp.activeSlideIdx, this.value)" title="Slide transition">
@@ -194,6 +207,7 @@
         <button class="toolbar-btn draw-tool-btn"        data-tool="ellipse" onclick="window.drawApp.setTool('ellipse')" title="Ellipse">◯</button>
         <button class="toolbar-btn draw-tool-btn"        data-tool="line"    onclick="window.drawApp.setTool('line')"    title="Line">╱</button>
         <button class="toolbar-btn draw-tool-btn"        data-tool="arrow"   onclick="window.drawApp.setTool('arrow')"   title="Arrow">→</button>
+        <button class="toolbar-btn draw-tool-btn"        data-tool="diamond" onclick="window.drawApp.setTool('diamond')" title="Decision Diamond">◇</button>
         <button class="toolbar-btn draw-tool-btn"        data-tool="text"    onclick="window.drawApp.setTool('text')"    title="Text (double-click)">T</button>
         <button class="toolbar-btn draw-tool-btn"        data-tool="polygon" onclick="window.drawApp.setTool('polygon')" title="Freehand polygon">✏</button>
         <button class="toolbar-btn draw-tool-btn"        data-tool="select"  onclick="window.drawApp.setTool('select')"  title="Select & move">↖</button>
@@ -217,6 +231,7 @@
         <div class="toolbar-divider"></div>
         <button id="btn-export-draw-svg" class="toolbar-btn primary" title="Export as SVG">💾 SVG</button>
         <button id="btn-export-draw-png" class="toolbar-btn" title="Export as PNG">🖼 PNG</button>
+        <button class="toolbar-btn" onclick="window.drawApp.copyToClipboard()" title="Copy PNG to clipboard">📋 Copy</button>
       </div>
       <div class="draw-container">
         <svg id="draw-canvas" class="draw-svg" width="900" height="620" viewBox="0 0 900 620"></svg>
@@ -311,7 +326,12 @@
       </div>
     </section>
 
-    <!-- 6. Documents Panel (Local IndexedDB store) -->
+    <!-- 6. Base Panel (DataCraft – inspired by LibreOffice Base, Airtable, SQLite Viewer) -->
+    <section id="panel-base" class="app-panel">
+      <div id="base-container" style="flex:1; display:flex; flex-direction:column; overflow:hidden;"></div>
+    </section>
+
+    <!-- 7. Documents Panel (Local IndexedDB store) -->
     <section id="panel-storage" class="app-panel">
       <div class="storage-layout">
         <h2>Offline Documents <span style="font-size:13px;font-weight:400;color:var(--text-muted);">(IndexedDB · File System Access API · No Cloud)</span></h2>
@@ -372,6 +392,15 @@
     </div>
   </div>
 
+  <!-- Chart Preview Modal -->
+  <div id="chart-modal" class="modal-overlay" style="display:none;">
+    <div class="modal-box" style="width:620px; text-align:center;">
+      <h3 style="margin-bottom:12px;">Spreadsheet SVG Chart</h3>
+      <div id="chart-preview-container" style="margin-bottom:16px; display:flex; justify-content:center;"></div>
+      <button class="toolbar-btn primary" onclick="document.getElementById('chart-modal').style.display='none'">Close</button>
+    </div>
+  </div>
+
   <!-- Application Logic (loaded in dependency order, zero CDN) -->
   <script src="./js/storage_engine.js"></script>
   <script src="./js/writer_web.js"></script>
@@ -379,6 +408,7 @@
   <script src="./js/impress_web.js"></script>
   <script src="./js/draw_web.js"></script>
   <script src="./js/math_web.js"></script>
+  <script src="./js/base_web.js"></script>
   <script src="./js/app.js"></script>
 </body>
 </html>

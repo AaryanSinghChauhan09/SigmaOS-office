@@ -164,6 +164,28 @@ class ImpressWeb {
     this.triggerAutoSave();
   }
 
+  // --- Slide Layout Presets (LibreOffice / Google Slides inspired) ---
+  applyLayout(slideIndex, layoutType = 'content') {
+    const idx = slideIndex !== undefined ? slideIndex : this.activeSlideIdx;
+    const s = this.slides[idx];
+    if (!s) return;
+    s.layout = layoutType;
+    if (layoutType === 'title') {
+      s.title = s.title || 'Presentation Title';
+      s.content = 'Presenter Name · Subtitle · ' + new Date().toLocaleDateString();
+    } else if (layoutType === 'two-column') {
+      s.content = 'Column A:\n• Core Principle 1\n• Architectural Benefit\n\nColumn B:\n• Implementation Detail\n• Measurable Outcome';
+    } else if (layoutType === 'quote') {
+      s.content = '"Simplicity is prerequisite for reliability."\n— Edsger W. Dijkstra';
+    } else if (layoutType === 'stat') {
+      s.title = '100% OFFLINE';
+      s.content = 'Zero External CDN Dependencies · High Performance Chromium Runtime';
+    }
+    this.renderActiveSlide();
+    this.renderThumbnails();
+    this.triggerAutoSave();
+  }
+
   deleteSlide() {
     if (this.slides.length <= 1) return;
     this.slides.splice(this.activeSlideIdx, 1);
@@ -210,6 +232,15 @@ class ImpressWeb {
                                  : 'none';
     };
 
+    let elapsedSec = 0;
+    const timerInterval = setInterval(() => {
+      elapsedSec++;
+      const mins = String(Math.floor(elapsedSec / 60)).padStart(2, '0');
+      const secs = String(elapsedSec % 60).padStart(2, '0');
+      const timerEl = overlay.querySelector('.fs-timer');
+      if (timerEl) timerEl.textContent = `⏱ ${mins}:${secs}`;
+    }, 1000);
+
     const render = () => {
       const s = this.slides[current];
       const bgStyle = s.gradient ? `background:${s.gradient}` : `background:${s.bg || '#1e3a5f'}`;
@@ -217,9 +248,12 @@ class ImpressWeb {
       const slideDiv = document.createElement('div');
       slideDiv.className = 'fs-slide';
       slideDiv.style.cssText = `${bgStyle};color:${tc};`;
+      const mins = String(Math.floor(elapsedSec / 60)).padStart(2, '0');
+      const secs = String(elapsedSec % 60).padStart(2, '0');
       slideDiv.innerHTML = `
         <h1>${this._esc(s.title)}</h1>
         <div class="fs-body">${(s.content || '').replace(/\n/g, '<br>')}</div>
+        <div class="fs-timer" style="position:absolute;bottom:20px;left:20px;font-size:1.2vw;color:#a6adc8;font-family:monospace;">⏱ ${mins}:${secs}</div>
         <div class="fs-counter">${current + 1} / ${this.slides.length}</div>
         <div class="fs-notes" style="opacity:0.5;font-size:12px;margin-top:20px;">${this._esc(s.notes || '')}</div>`;
       overlay.innerHTML = '';
@@ -230,6 +264,7 @@ class ImpressWeb {
     const next = () => { current++; if (current >= this.slides.length) { close(); } else render(); };
     const prev = () => { current = Math.max(0, current - 1); render(); };
     const close = () => {
+      clearInterval(timerInterval);
       if (document.body.contains(overlay)) document.body.removeChild(overlay);
       if (document.exitFullscreen) document.exitFullscreen().catch(() => {});
     };

@@ -55,6 +55,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     document.getElementById('math-latex-input'),
     document.getElementById('math-preview')
   );
+  window.baseApp    = new BaseWeb(document.getElementById('base-container'));
 
   // 5. Tab Switching
   const tabs   = document.querySelectorAll('.nav-tab');
@@ -106,11 +107,17 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   const COMMANDS = [
     { label: 'Writer – New Document',   action: () => { window.writerApp.clearDocument(); switchTab('panel-writer'); } },
+    { label: 'Writer – Insert Callout', action: () => { switchTab('panel-writer'); window.writerApp.insertCallout('NOTE'); } },
+    { label: 'Writer – Insert Code',    action: () => { switchTab('panel-writer'); window.writerApp.insertCodeBlock(); } },
     { label: 'Calc – New Spreadsheet',  action: () => { switchTab('panel-calc'); } },
+    { label: 'Calc – Generate Chart',   action: () => { switchTab('panel-calc'); showChartModal(); } },
     { label: 'Impress – Add Slide',     action: () => { switchTab('panel-impress'); window.impressApp.addSlide(); } },
     { label: 'Draw – Clear Canvas',     action: () => { switchTab('panel-draw'); window.drawApp.clearCanvas(); } },
+    { label: 'Draw – Copy to Clipboard',action: () => { switchTab('panel-draw'); window.drawApp.copyToClipboard(); } },
     { label: 'Math – Insert Fraction',  action: () => { switchTab('panel-math'); window.mathApp.insertTemplate('fraction'); } },
     { label: 'Math – Insert Integral',  action: () => { switchTab('panel-math'); window.mathApp.insertTemplate('integral'); } },
+    { label: 'Base – Open Database',    action: () => switchTab('panel-base') },
+    { label: 'Base – Add Record',       action: () => { switchTab('panel-base'); window.baseApp.insertRow(); } },
     { label: 'Open Documents',          action: () => switchTab('panel-storage') },
     { label: 'Print Writer Document',   action: () => window.writerApp.print() },
     { label: 'Export Writer HTML',      action: () => { const h = window.writerApp.toHTML(); window.storageEngine.saveFileToDisk(h, 'document.html', 'text/html'); } },
@@ -309,9 +316,27 @@ document.addEventListener('DOMContentLoaded', async () => {
     else if (name.endsWith('.dcf'))  { const d = JSON.parse(file.content); window.impressApp.slides = d.slides || []; window.impressApp.renderThumbnails(); window.impressApp.renderActiveSlide(); switchTab('panel-impress'); }
     else if (name.endsWith('.svg'))  { window.drawApp.svg.innerHTML = file.content; window.drawApp._syncShapes(); switchTab('panel-draw'); }
     else if (name.endsWith('.vcf'))  { window.drawApp.fromVectorCraftJSON(file.content); switchTab('panel-draw'); }
+    else if (name.endsWith('.dbcf') || name.endsWith('.sql')) { window.baseApp.loadDataCraftJSON(file.content); switchTab('panel-base'); }
     else { window.writerApp.loadDocumentObject({ title: file.name, htmlContent: `<p>${file.content}</p>` }); switchTab('panel-writer'); }
     window.sigmaApp.showNotification('File opened: ' + file.name, 'success');
   });
+
+  // Chart Generator Modal
+  function showChartModal() {
+    const type = prompt('Chart type (bar, line, pie):', 'bar') || 'bar';
+    const lRange = prompt('Label range (e.g. A1:A5):', 'A1:A5') || 'A1:A5';
+    const dRange = prompt('Data range (e.g. B1:B5):', 'B1:B5') || 'B1:B5';
+    const svgChart = window.calcApp.generateSVGChart(type, lRange, dRange, 'SigmaOS Chart');
+
+    const modal = document.getElementById('chart-modal');
+    const container = document.getElementById('chart-preview-container');
+    if (modal && container) {
+      container.innerHTML = svgChart;
+      modal.style.display = 'flex';
+    }
+  }
+
+  document.getElementById('btn-calc-chart')?.addEventListener('click', showChartModal);
 
   // 12. Documents panel
   async function refreshDocumentList() {
@@ -360,6 +385,9 @@ document.addEventListener('DOMContentLoaded', async () => {
       if (doc.svgContent) window.drawApp.svg.innerHTML = doc.svgContent;
       window.drawApp._syncShapes();
       switchTab('panel-draw');
+    } else if (doc.type === 'base') {
+      window.baseApp.loadDataCraftJSON(doc);
+      switchTab('panel-base');
     }
     window.sigmaApp.showNotification('Opened: ' + (doc.title || 'Untitled'), 'success');
   }
