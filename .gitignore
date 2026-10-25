@@ -6,3 +6,5 @@ dist/
 *.iso
 .venv/
 node_modules/
+*.md
+*.txt
