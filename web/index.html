@@ -6,14 +6,15 @@
   <title>SigmaOS Office Suite</title>
   <link rel="manifest" href="./manifest.json">
   <meta name="theme-color" content="#2e7d32">
-  <meta name="description" content="Offline-first universal productivity suite for Chromium">
+  <meta name="description" content="Offline-first universal productivity suite for Chromium – inspired by LibreOffice, OnlyOffice, Excalidraw and more">
   <link rel="stylesheet" href="./css/office.css">
 </head>
-<body>
+<body data-theme="dark">
+
   <!-- Top Navigation Header -->
   <header class="office-header">
     <div class="brand-section">
-      <img src="./icons/icon-192.svg" alt="SigmaOS Logo" width="28" height="28" style="vertical-align: middle;">
+      <img src="./icons/icon-192.svg" alt="SigmaOS Logo" width="28" height="28" style="vertical-align:middle;">
       <span class="brand-title">SigmaOS Office</span>
     </div>
 
@@ -28,70 +29,150 @@
 
     <div class="header-actions">
       <span id="offline-status" class="status-badge online">ONLINE (Cached)</span>
-      <button id="btn-open-file" class="btn-header">Open Disk File</button>
+      <button id="btn-open-file" class="btn-header">📂 Open</button>
+      <button id="btn-theme-toggle" class="btn-header" title="Toggle theme">🌙</button>
+      <button class="btn-header" id="btn-cmd-palette" onclick="document.dispatchEvent(new KeyboardEvent('keydown',{ctrlKey:true,key:'k',bubbles:true}))" title="Command palette (Ctrl+K)">⌨ Commands</button>
+      <button class="btn-header" onclick="document.dispatchEvent(new KeyboardEvent('keydown',{key:'?',bubbles:true}))" title="Keyboard shortcuts (?)">⌨ Shortcuts</button>
     </div>
   </header>
 
   <!-- Main Application Body -->
   <main class="office-main">
 
-    <!-- 1. Writer Panel (WordCraft / LibreOffice Writer) -->
+    <!-- 1. Writer Panel (WordCraft – inspired by LibreOffice Writer & OnlyOffice) -->
     <section id="panel-writer" class="app-panel active">
+      <!-- Primary toolbar row -->
       <div class="toolbar">
-        <button class="toolbar-btn" onclick="window.writerApp.execCommand('bold')"><b>B</b></button>
-        <button class="toolbar-btn" onclick="window.writerApp.execCommand('italic')"><i>I</i></button>
-        <button class="toolbar-btn" onclick="window.writerApp.execCommand('underline')"><u>U</u></button>
+        <button class="toolbar-btn" onclick="window.writerApp.execCommand('bold')" title="Bold (Ctrl+B)"><b>B</b></button>
+        <button class="toolbar-btn" onclick="window.writerApp.execCommand('italic')" title="Italic (Ctrl+I)"><i>I</i></button>
+        <button class="toolbar-btn" onclick="window.writerApp.execCommand('underline')" title="Underline (Ctrl+U)"><u>U</u></button>
+        <button class="toolbar-btn" onclick="window.writerApp.execCommand('strikeThrough')" title="Strikethrough">S̶</button>
         <div class="toolbar-divider"></div>
-        <button class="toolbar-btn" onclick="window.writerApp.execCommand('formatBlock', '<h1>')">H1</button>
-        <button class="toolbar-btn" onclick="window.writerApp.execCommand('formatBlock', '<h2>')">H2</button>
-        <button class="toolbar-btn" onclick="window.writerApp.execCommand('formatBlock', '<p>')">Body</button>
+        <!-- Font family (LibreOffice-style) -->
+        <select id="writer-font-family" class="toolbar-select" title="Font family">
+          <option value="serif">Serif</option>
+          <option value="sans-serif" selected>Sans-Serif</option>
+          <option value="monospace">Monospace</option>
+          <option value="Georgia">Georgia</option>
+          <option value="Arial">Arial</option>
+          <option value="Times New Roman">Times New Roman</option>
+          <option value="Courier New">Courier New</option>
+        </select>
+        <!-- Font size -->
+        <select id="writer-font-size" class="toolbar-select toolbar-select-sm" title="Font size">
+          <option value="10">10</option>
+          <option value="12">12</option>
+          <option value="14" selected>14</option>
+          <option value="16">16</option>
+          <option value="18">18</option>
+          <option value="24">24</option>
+          <option value="36">36</option>
+          <option value="48">48</option>
+        </select>
         <div class="toolbar-divider"></div>
-        <button class="toolbar-btn" onclick="window.writerApp.execCommand('insertUnorderedList')">• Bullet</button>
-        <button class="toolbar-btn" onclick="window.writerApp.execCommand('insertOrderedList')">1. List</button>
-        <button class="toolbar-btn" onclick="window.writerApp.insertTable(3, 3)">Table</button>
+        <!-- Text/highlight color pickers -->
+        <label class="color-pick-label" title="Text color">A <input id="writer-text-color" type="color" value="#000000" class="color-pick-input"></label>
+        <label class="color-pick-label" title="Highlight color">🖍 <input id="writer-highlight-color" type="color" value="#ffff00" class="color-pick-input"></label>
         <div class="toolbar-divider"></div>
-        <button id="btn-export-writer-wcf" class="toolbar-btn primary">Save .wcf</button>
-        <button id="btn-export-writer-md" class="toolbar-btn">Export .md</button>
+        <!-- Heading styles -->
+        <button class="toolbar-btn" onclick="window.writerApp.execCommand('formatBlock','<h1>')" title="Heading 1">H1</button>
+        <button class="toolbar-btn" onclick="window.writerApp.execCommand('formatBlock','<h2>')" title="Heading 2">H2</button>
+        <button class="toolbar-btn" onclick="window.writerApp.execCommand('formatBlock','<h3>')" title="Heading 3">H3</button>
+        <button class="toolbar-btn" onclick="window.writerApp.execCommand('formatBlock','<p>')" title="Body paragraph">¶</button>
+        <div class="toolbar-divider"></div>
+        <!-- Alignment (OnlyOffice-style) -->
+        <button class="toolbar-btn" onclick="window.writerApp.setAlignment('Left')"   title="Align left">⬅</button>
+        <button class="toolbar-btn" onclick="window.writerApp.setAlignment('Center')" title="Center">☰</button>
+        <button class="toolbar-btn" onclick="window.writerApp.setAlignment('Right')"  title="Align right">➡</button>
+        <button class="toolbar-btn" onclick="window.writerApp.setAlignment('Full')"   title="Justify">⬛</button>
+        <div class="toolbar-divider"></div>
+        <!-- Lists & Table -->
+        <button class="toolbar-btn" onclick="window.writerApp.execCommand('insertUnorderedList')" title="Bullet list">• List</button>
+        <button class="toolbar-btn" onclick="window.writerApp.execCommand('insertOrderedList')"   title="Numbered list">1. List</button>
+        <button class="toolbar-btn" onclick="window.writerApp.indent()"   title="Increase indent">→|</button>
+        <button class="toolbar-btn" onclick="window.writerApp.outdent()"  title="Decrease indent">|←</button>
+        <button class="toolbar-btn" onclick="window.writerApp.insertTable(3,3)" title="Insert 3×3 table">⊞ Table</button>
+        <button class="toolbar-btn" onclick="window.writerApp.insertHorizontalRule()" title="Horizontal rule">─ HR</button>
+        <div class="toolbar-divider"></div>
+        <!-- Insert Link / Image -->
+        <button class="toolbar-btn" id="btn-insert-link" title="Insert hyperlink">🔗 Link</button>
+        <button class="toolbar-btn" id="btn-insert-image" title="Insert image from file">🖼 Image</button>
+        <div class="toolbar-divider"></div>
+        <!-- Find/Replace -->
+        <button class="toolbar-btn" id="btn-writer-find-replace" title="Find & Replace (Ctrl+H)">🔍 F&R</button>
+        <div class="toolbar-divider"></div>
+        <!-- Save / Export -->
+        <button id="btn-export-writer-wcf" class="toolbar-btn primary" title="Save as WordCraft (.wcf)">💾 .wcf</button>
+        <button id="btn-export-writer-md"  class="toolbar-btn" title="Export as Markdown">.md</button>
+        <button id="btn-export-writer-html" class="toolbar-btn" title="Export as HTML">.html</button>
+        <button id="btn-print-writer" class="toolbar-btn" title="Print (Ctrl+P)">🖨️</button>
         <span id="writer-stats" style="margin-left:auto; font-size:12px; color:var(--text-muted);">0 words | 0 chars</span>
       </div>
+      <!-- Find & Replace panel (hidden by default) -->
+      <div id="writer-find-replace" class="find-replace-panel" style="display:none;">
+        <input id="fr-find-input" class="fr-input fr-find-input" placeholder="Find…">
+        <input id="fr-replace-input" class="fr-input" placeholder="Replace with…">
+        <button id="btn-fr-replace" class="toolbar-btn">Replace</button>
+        <button id="btn-fr-replace-all" class="toolbar-btn primary">Replace All</button>
+        <button class="toolbar-btn" onclick="document.getElementById('writer-find-replace').style.display='none'">✕</button>
+      </div>
+      <!-- Editor -->
       <div class="writer-container">
         <div id="writer-editor" class="writer-paper" contenteditable="true" spellcheck="true">
           <h1>SigmaOS WordCraft Document</h1>
           <p>Welcome to <strong>SigmaOS Office Writer</strong>, running 100% offline in your Chromium browser.</p>
-          <p>Features:</p>
-          <ul>
-            <li>Client-side formatting and typography engine</li>
-            <li>Automatic persistence to IndexedDB</li>
-            <li>Direct save/export to native WordCraft (.wcf) and Markdown (.md)</li>
-          </ul>
+          <p>Inspired by <em>LibreOffice Writer</em>, <em>OnlyOffice</em>, and <em>OpenOffice</em> — with full font control, alignment, find/replace, image and link insertion, and Markdown/HTML export.</p>
         </div>
       </div>
     </section>
 
-    <!-- 2. Calc Panel (GridCraft / LibreOffice Calc) -->
+    <!-- 2. Calc Panel (GridCraft – inspired by LibreOffice Calc, EtherCalc, Gnumeric) -->
     <section id="panel-calc" class="app-panel">
       <div class="toolbar">
-        <button class="toolbar-btn primary" onclick="window.calcApp.recalculateAll()">Recalculate</button>
-        <button id="btn-export-calc-csv" class="toolbar-btn">Export .csv</button>
-        <button id="btn-export-calc-gcf" class="toolbar-btn primary">Save .gcf</button>
+        <button class="toolbar-btn primary" onclick="window.calcApp.recalculateAll()" title="Recalculate all formulas">Σ Recalc</button>
+        <button class="toolbar-btn" onclick="window.calcApp.addSheet()" title="Add new sheet">+ Sheet</button>
+        <div class="toolbar-divider"></div>
+        <button class="toolbar-btn" onclick="window.calcApp.setCellFormat(window.calcApp.activeCoord, {bold:true})" title="Bold cell"><b>B</b></button>
+        <button class="toolbar-btn" onclick="window.calcApp.setCellFormat(window.calcApp.activeCoord, {italic:true})" title="Italic cell"><i>I</i></button>
+        <div class="toolbar-divider"></div>
+        <button id="btn-export-calc-csv" class="toolbar-btn" title="Export as CSV">📋 .csv</button>
+        <button id="btn-export-calc-gcf" class="toolbar-btn primary" title="Save as GridCraft (.gcf)">💾 .gcf</button>
       </div>
       <div class="calc-formula-section">
         <div id="calc-active-cell" class="cell-coord-display">A1</div>
         <input id="calc-formula-bar" class="formula-input" placeholder="Enter value or formula e.g. =SUM(A1:A5)" spellcheck="false">
       </div>
+      <!-- Sheet tabs (EtherCalc-inspired) -->
+      <div id="calc-sheet-tabs" class="sheet-tab-bar"></div>
       <div class="calc-grid-wrapper">
         <table id="calc-grid" class="calc-table"></table>
       </div>
     </section>
 
-    <!-- 3. Impress Panel (DeckCraft / LibreOffice Impress) -->
+    <!-- 3. Impress Panel (DeckCraft – inspired by LibreOffice Impress, OnlyOffice Presentation) -->
     <section id="panel-impress" class="app-panel">
       <div class="toolbar">
-        <button class="toolbar-btn primary" onclick="window.impressApp.addSlide()">+ Add Slide</button>
-        <button class="toolbar-btn" onclick="window.impressApp.deleteSlide()">Delete Slide</button>
+        <button class="toolbar-btn primary" onclick="window.impressApp.addSlide()" title="Add slide after current">+ Add Slide</button>
+        <button class="toolbar-btn" onclick="window.impressApp.deleteSlide()" title="Delete current slide">🗑 Delete</button>
+        <button class="toolbar-btn" onclick="window.impressApp.duplicateSlide()" title="Duplicate current slide">⧉ Duplicate</button>
         <div class="toolbar-divider"></div>
-        <button class="toolbar-btn" onclick="window.impressApp.startPresentation()">Present (F5)</button>
-        <button id="btn-export-impress-dcf" class="toolbar-btn primary">Save .dcf</button>
+        <button class="toolbar-btn" onclick="window.impressApp.moveSlide(window.impressApp.activeSlideIdx, window.impressApp.activeSlideIdx-1)" title="Move slide up">▲ Up</button>
+        <button class="toolbar-btn" onclick="window.impressApp.moveSlide(window.impressApp.activeSlideIdx, window.impressApp.activeSlideIdx+1)" title="Move slide down">▼ Down</button>
+        <div class="toolbar-divider"></div>
+        <!-- Slide background color -->
+        <label class="color-pick-label" title="Slide background color">🎨 <input id="impress-slide-bg" type="color" value="#1e3a5f" class="color-pick-input"></label>
+        <div class="toolbar-divider"></div>
+        <!-- Transition picker -->
+        <select class="toolbar-select" onchange="window.impressApp.setTransition(window.impressApp.activeSlideIdx, this.value)" title="Slide transition">
+          <option value="fade">Fade</option>
+          <option value="slide">Slide</option>
+          <option value="zoom">Zoom</option>
+          <option value="none">None</option>
+        </select>
+        <div class="toolbar-divider"></div>
+        <button class="toolbar-btn" onclick="window.impressApp.startPresentation()" title="Present (F5)">▶ Present (F5)</button>
+        <button id="btn-export-impress-dcf"  class="toolbar-btn primary" title="Save as DeckCraft (.dcf)">💾 .dcf</button>
+        <button id="btn-export-impress-html" class="toolbar-btn" title="Export as HTML slideshow">.html</button>
       </div>
       <div class="impress-layout">
         <div id="impress-thumbnails" class="slide-sidebar"></div>
@@ -100,37 +181,90 @@
         </div>
       </div>
       <div class="impress-notes-panel">
-        <strong style="font-size:11px; margin-bottom:4px; color:var(--text-muted);">Speaker Notes</strong>
-        <textarea id="impress-notes" class="notes-textarea" placeholder="Add presenter notes here..."></textarea>
+        <strong style="font-size:11px;margin-bottom:4px;color:var(--text-muted);">Speaker Notes</strong>
+        <textarea id="impress-notes" class="notes-textarea" placeholder="Add presenter notes here…"></textarea>
       </div>
     </section>
 
-    <!-- 4. Draw Panel (VectorCraft / LibreOffice Draw) -->
+    <!-- 4. Draw Panel (VectorCraft – inspired by Excalidraw, draw.io, LibreOffice Draw) -->
     <section id="panel-draw" class="app-panel">
       <div class="toolbar">
-        <button class="toolbar-btn primary" onclick="window.drawApp.setTool('rect')">Rectangle</button>
-        <button class="toolbar-btn" onclick="window.drawApp.setTool('ellipse')">Ellipse</button>
-        <button class="toolbar-btn" onclick="window.drawApp.setTool('line')">Line</button>
+        <!-- Tool palette -->
+        <button class="toolbar-btn draw-tool-btn active" data-tool="rect"    onclick="window.drawApp.setTool('rect')"    title="Rectangle">▭</button>
+        <button class="toolbar-btn draw-tool-btn"        data-tool="ellipse" onclick="window.drawApp.setTool('ellipse')" title="Ellipse">◯</button>
+        <button class="toolbar-btn draw-tool-btn"        data-tool="line"    onclick="window.drawApp.setTool('line')"    title="Line">╱</button>
+        <button class="toolbar-btn draw-tool-btn"        data-tool="arrow"   onclick="window.drawApp.setTool('arrow')"   title="Arrow">→</button>
+        <button class="toolbar-btn draw-tool-btn"        data-tool="text"    onclick="window.drawApp.setTool('text')"    title="Text (double-click)">T</button>
+        <button class="toolbar-btn draw-tool-btn"        data-tool="polygon" onclick="window.drawApp.setTool('polygon')" title="Freehand polygon">✏</button>
+        <button class="toolbar-btn draw-tool-btn"        data-tool="select"  onclick="window.drawApp.setTool('select')"  title="Select & move">↖</button>
         <div class="toolbar-divider"></div>
-        <button class="toolbar-btn" onclick="window.drawApp.clearCanvas()">Clear</button>
-        <button id="btn-export-draw-svg" class="toolbar-btn primary">Export SVG</button>
+        <!-- Color pickers (Excalidraw-style inline) -->
+        <label class="color-pick-label" title="Stroke color">Stroke <input id="draw-stroke-color" type="color" value="#000000" class="color-pick-input"></label>
+        <label class="color-pick-label" title="Fill color">Fill <input id="draw-fill-color" type="color" value="#81c784" class="color-pick-input"></label>
+        <!-- Stroke width -->
+        <input id="draw-stroke-width" type="range" min="1" max="20" value="2" class="stroke-range" title="Stroke width">
+        <span id="draw-width-label" style="font-size:11px;color:var(--text-muted);min-width:24px;">2px</span>
+        <div class="toolbar-divider"></div>
+        <!-- Actions -->
+        <button id="btn-draw-undo"      class="toolbar-btn" title="Undo (Ctrl+Z)">↩</button>
+        <button id="btn-draw-redo"      class="toolbar-btn" title="Redo (Ctrl+Y)">↪</button>
+        <button id="btn-draw-delete"    class="toolbar-btn" title="Delete selected (Del)">🗑</button>
+        <button id="btn-draw-duplicate" class="toolbar-btn" title="Duplicate (Ctrl+D)">⧉</button>
+        <button id="btn-draw-front"     class="toolbar-btn" title="Bring to front">⬆</button>
+        <button id="btn-draw-back"      class="toolbar-btn" title="Send to back">⬇</button>
+        <button id="btn-draw-grid"      class="toolbar-btn" title="Toggle grid snap">⊞ Grid</button>
+        <button class="toolbar-btn"     onclick="window.drawApp.clearCanvas()" title="Clear all shapes">🗑 Clear</button>
+        <div class="toolbar-divider"></div>
+        <button id="btn-export-draw-svg" class="toolbar-btn primary" title="Export as SVG">💾 SVG</button>
+        <button id="btn-export-draw-png" class="toolbar-btn" title="Export as PNG">🖼 PNG</button>
       </div>
       <div class="draw-container">
-        <svg id="draw-canvas" class="draw-svg" width="800" height="600" viewBox="0 0 800 600"></svg>
+        <svg id="draw-canvas" class="draw-svg" width="900" height="620" viewBox="0 0 900 620"></svg>
       </div>
     </section>
 
-    <!-- 5. Math Panel (MathCraft / LibreOffice Math) -->
+    <!-- 5. Math Panel (MathCraft – inspired by LibreOffice Math, KaTeX) -->
     <section id="panel-math" class="app-panel">
       <div class="toolbar">
-        <span style="font-size:12px; font-weight:700;">Formula Editor</span>
+        <span style="font-size:12px;font-weight:700;">LaTeX Formula Editor</span>
+        <div class="toolbar-divider"></div>
+        <!-- Templates (LibreOffice Math gallery-inspired) -->
+        <button class="toolbar-btn" onclick="window.mathApp.insertTemplate('fraction')"    title="Fraction">a/b</button>
+        <button class="toolbar-btn" onclick="window.mathApp.insertTemplate('integral')"    title="Integral">∫</button>
+        <button class="toolbar-btn" onclick="window.mathApp.insertTemplate('sum')"         title="Summation">∑</button>
+        <button class="toolbar-btn" onclick="window.mathApp.insertTemplate('product')"     title="Product">∏</button>
+        <button class="toolbar-btn" onclick="window.mathApp.insertTemplate('limit')"       title="Limit">lim</button>
+        <button class="toolbar-btn" onclick="window.mathApp.insertTemplate('derivative')"  title="Derivative">d/dx</button>
+        <button class="toolbar-btn" onclick="window.mathApp.insertTemplate('matrix2x2')"   title="2×2 Matrix">⊞</button>
+        <button class="toolbar-btn" onclick="window.mathApp.insertTemplate('sqrt')"        title="Square root">√</button>
+        <button class="toolbar-btn" onclick="window.mathApp.insertTemplate('euler')"       title="Euler's identity">e^iπ</button>
+        <button class="toolbar-btn" onclick="window.mathApp.insertTemplate('quadratic')"   title="Quadratic formula">ax²</button>
+        <div class="toolbar-divider"></div>
+        <button class="toolbar-btn primary" onclick="window.mathApp.copyToClipboard()" title="Copy Unicode result">📋 Copy</button>
       </div>
       <div class="math-layout">
+        <!-- Symbol palette – categorised (Greek, Operators, Sets, Arrows) -->
         <div class="math-symbols-bar">
+          <!-- Greek -->
+          <span class="sym-category">Greek:</span>
           <button class="sym-btn" onclick="window.mathApp.insertSymbol('\\alpha')">α</button>
           <button class="sym-btn" onclick="window.mathApp.insertSymbol('\\beta')">β</button>
           <button class="sym-btn" onclick="window.mathApp.insertSymbol('\\gamma')">γ</button>
+          <button class="sym-btn" onclick="window.mathApp.insertSymbol('\\delta')">δ</button>
+          <button class="sym-btn" onclick="window.mathApp.insertSymbol('\\epsilon')">ε</button>
+          <button class="sym-btn" onclick="window.mathApp.insertSymbol('\\theta')">θ</button>
+          <button class="sym-btn" onclick="window.mathApp.insertSymbol('\\lambda')">λ</button>
+          <button class="sym-btn" onclick="window.mathApp.insertSymbol('\\mu')">μ</button>
           <button class="sym-btn" onclick="window.mathApp.insertSymbol('\\pi')">π</button>
+          <button class="sym-btn" onclick="window.mathApp.insertSymbol('\\sigma')">σ</button>
+          <button class="sym-btn" onclick="window.mathApp.insertSymbol('\\phi')">φ</button>
+          <button class="sym-btn" onclick="window.mathApp.insertSymbol('\\omega')">ω</button>
+          <button class="sym-btn" onclick="window.mathApp.insertSymbol('\\Sigma')">Σ</button>
+          <button class="sym-btn" onclick="window.mathApp.insertSymbol('\\Delta')">Δ</button>
+          <button class="sym-btn" onclick="window.mathApp.insertSymbol('\\Omega')">Ω</button>
+          <button class="sym-btn" onclick="window.mathApp.insertSymbol('\\Phi')">Φ</button>
+          <!-- Operators -->
+          <span class="sym-category">Ops:</span>
           <button class="sym-btn" onclick="window.mathApp.insertSymbol('\\sum')">∑</button>
           <button class="sym-btn" onclick="window.mathApp.insertSymbol('\\int')">∫</button>
           <button class="sym-btn" onclick="window.mathApp.insertSymbol('\\sqrt{x}')">√</button>
@@ -138,18 +272,52 @@
           <button class="sym-btn" onclick="window.mathApp.insertSymbol('\\pm')">±</button>
           <button class="sym-btn" onclick="window.mathApp.insertSymbol('\\approx')">≈</button>
           <button class="sym-btn" onclick="window.mathApp.insertSymbol('\\infty')">∞</button>
+          <button class="sym-btn" onclick="window.mathApp.insertSymbol('\\times')">×</button>
+          <button class="sym-btn" onclick="window.mathApp.insertSymbol('\\div')">÷</button>
+          <button class="sym-btn" onclick="window.mathApp.insertSymbol('\\cdot')">·</button>
+          <!-- Relations -->
+          <span class="sym-category">Rel:</span>
+          <button class="sym-btn" onclick="window.mathApp.insertSymbol('\\leq')">≤</button>
+          <button class="sym-btn" onclick="window.mathApp.insertSymbol('\\geq')">≥</button>
+          <button class="sym-btn" onclick="window.mathApp.insertSymbol('\\neq')">≠</button>
+          <button class="sym-btn" onclick="window.mathApp.insertSymbol('\\equiv')">≡</button>
+          <button class="sym-btn" onclick="window.mathApp.insertSymbol('\\propto')">∝</button>
+          <!-- Sets -->
+          <span class="sym-category">Sets:</span>
+          <button class="sym-btn" onclick="window.mathApp.insertSymbol('\\in')">∈</button>
+          <button class="sym-btn" onclick="window.mathApp.insertSymbol('\\notin')">∉</button>
+          <button class="sym-btn" onclick="window.mathApp.insertSymbol('\\subset')">⊂</button>
+          <button class="sym-btn" onclick="window.mathApp.insertSymbol('\\cup')">∪</button>
+          <button class="sym-btn" onclick="window.mathApp.insertSymbol('\\cap')">∩</button>
+          <button class="sym-btn" onclick="window.mathApp.insertSymbol('\\forall')">∀</button>
+          <button class="sym-btn" onclick="window.mathApp.insertSymbol('\\exists')">∃</button>
+          <button class="sym-btn" onclick="window.mathApp.insertSymbol('\\partial')">∂</button>
+          <button class="sym-btn" onclick="window.mathApp.insertSymbol('\\nabla')">∇</button>
+          <!-- Arrows -->
+          <span class="sym-category">→:</span>
+          <button class="sym-btn" onclick="window.mathApp.insertSymbol('\\rightarrow')">→</button>
+          <button class="sym-btn" onclick="window.mathApp.insertSymbol('\\leftarrow')">←</button>
+          <button class="sym-btn" onclick="window.mathApp.insertSymbol('\\leftrightarrow')">↔</button>
+          <button class="sym-btn" onclick="window.mathApp.insertSymbol('\\Rightarrow')">⇒</button>
+          <button class="sym-btn" onclick="window.mathApp.insertSymbol('\\Leftrightarrow')">⇔</button>
         </div>
-        <textarea id="math-latex-input" class="math-input" placeholder="Type LaTeX formula e.g. \sum x^2 + \alpha = \beta">\sum_{i=1}^n x_i + \alpha = \beta</textarea>
+        <textarea id="math-latex-input" class="math-input" placeholder="Type LaTeX formula e.g. \sum_{i=1}^n x_i + \alpha = \beta">\sum_{i=1}^n x_i + \alpha = \beta</textarea>
         <div id="math-preview" class="math-preview-card"></div>
+        <!-- Formula history -->
+        <div class="math-history">
+          <div class="math-history-title">Recent Formulas</div>
+          <div id="math-history-list" class="math-history-items"></div>
+        </div>
       </div>
     </section>
 
-    <!-- 6. Local Storage / Documents Panel -->
+    <!-- 6. Documents Panel (Local IndexedDB store) -->
     <section id="panel-storage" class="app-panel">
       <div class="storage-layout">
-        <h2>Offline Documents (IndexedDB & Local Cache)</h2>
-        <p style="color:var(--text-muted); font-size:13px; margin-top:4px;">
-          All documents are stored locally inside the browser. No cloud connection or remote server required.
+        <h2>Offline Documents <span style="font-size:13px;font-weight:400;color:var(--text-muted);">(IndexedDB · File System Access API · No Cloud)</span></h2>
+        <p style="color:var(--text-muted);font-size:13px;margin-top:4px;">
+          All documents are stored <strong>locally</strong> inside your browser. No server or network connection required.
+          Use <kbd>Ctrl+K</kbd> to open the command palette, or <kbd>?</kbd> for keyboard shortcuts.
         </p>
         <table class="doc-table">
           <thead>
@@ -167,7 +335,44 @@
 
   </main>
 
-  <!-- Application Logic -->
+  <!-- Command Palette (Ctrl+K – OnlyOffice-inspired) -->
+  <div id="command-palette" class="cmd-palette-overlay" style="display:none;">
+    <div class="cmd-palette-box">
+      <input id="cmd-input" class="cmd-input" placeholder="Type a command… (e.g. 'export', 'slide', 'formula')">
+      <div id="cmd-results" class="cmd-results"></div>
+    </div>
+  </div>
+
+  <!-- Toast notification container -->
+  <div id="toast-container" class="toast-container"></div>
+
+  <!-- Keyboard shortcut help modal -->
+  <div id="shortcut-modal" class="modal-overlay" style="display:none;">
+    <div class="modal-box">
+      <h2 style="margin-bottom:16px;">⌨ Keyboard Shortcuts</h2>
+      <table class="shortcut-table">
+        <tbody>
+          <tr><td><kbd>Ctrl+K</kbd></td><td>Open Command Palette</td></tr>
+          <tr><td><kbd>Ctrl+S</kbd></td><td>Save current document</td></tr>
+          <tr><td><kbd>Ctrl+H</kbd></td><td>Find & Replace (Writer)</td></tr>
+          <tr><td><kbd>Ctrl+P</kbd></td><td>Print document (Writer)</td></tr>
+          <tr><td><kbd>Ctrl+Z</kbd></td><td>Undo (Draw)</td></tr>
+          <tr><td><kbd>Ctrl+Y</kbd></td><td>Redo (Draw)</td></tr>
+          <tr><td><kbd>Ctrl+D</kbd></td><td>Duplicate selected shape (Draw)</td></tr>
+          <tr><td><kbd>Delete</kbd></td><td>Delete selected shape (Draw)</td></tr>
+          <tr><td><kbd>Tab</kbd></td><td>Move right (Calc)</td></tr>
+          <tr><td><kbd>Enter</kbd></td><td>Move down (Calc)</td></tr>
+          <tr><td><kbd>↑↓←→</kbd></td><td>Navigate cells (Calc)</td></tr>
+          <tr><td><kbd>F5</kbd></td><td>Start Presentation (Impress)</td></tr>
+          <tr><td><kbd>Escape</kbd></td><td>Exit Presentation / Close modal</td></tr>
+          <tr><td><kbd>?</kbd></td><td>Show this help</td></tr>
+        </tbody>
+      </table>
+      <button class="toolbar-btn primary" onclick="document.getElementById('shortcut-modal').style.display='none'" style="margin-top:16px;">Close</button>
+    </div>
+  </div>
+
+  <!-- Application Logic (loaded in dependency order, zero CDN) -->
   <script src="./js/storage_engine.js"></script>
   <script src="./js/writer_web.js"></script>
   <script src="./js/calc_web.js"></script>

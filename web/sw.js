@@ -1,5 +1,5 @@
 // SigmaOS Office Service Worker (PWA Offline Runtime for Chromium)
-const CACHE_NAME = 'sigma-office-v2.1.0';
+const CACHE_NAME = 'sigma-office-v2.2.0';
 
 const ASSETS_TO_CACHE = [
   './',
@@ -63,6 +63,13 @@ self.addEventListener('fetch', (event) => {
       });
     })
   );
+});
+
+// Cache invalidation message handler
+self.addEventListener('message', (event) => {
+  if (event.data && event.data.type === 'SKIP_WAITING') {
+    self.skipWaiting();
+  }
 });
 
 // Background sync support

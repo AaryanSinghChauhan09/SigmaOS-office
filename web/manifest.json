@@ -7,6 +7,10 @@
   "background_color": "#1e1e2e",
   "theme_color": "#2e7d32",
   "orientation": "any",
+  "categories": [
+    "productivity",
+    "utilities"
+  ],
   "icons": [
     {
       "src": "./icons/icon-192.svg",
@@ -17,6 +21,15 @@
       "src": "./icons/icon-512.svg",
       "sizes": "512x512",
       "type": "image/svg+xml"
+    }
+  ],
+  "screenshots": [
+    {
+      "src": "./icons/icon-512.svg",
+      "sizes": "512x512",
+      "type": "image/svg+xml",
+      "form_factor": "wide",
+      "label": "SigmaOS Office Suite Workspace"
     }
   ],
   "file_handlers": [

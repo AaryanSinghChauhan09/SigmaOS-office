@@ -14,6 +14,20 @@
   --mono-font: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, Courier, monospace;
 }
 
+/* Light Theme Variables */
+body[data-theme="light"] {
+  --bg-dark: #eff1f5;
+  --bg-panel: #e6e9ef;
+  --bg-sidebar: #dce0e8;
+  --accent-green: #2e7d32;
+  --accent-mint: #40a02b;
+  --text-primary: #4c4f69;
+  --text-muted: #6c6f85;
+  --border-color: #ccd0da;
+  --paper-bg: #ffffff;
+  --paper-text: #11111b;
+}
+
 * {
   box-sizing: border-box;
   margin: 0;
@@ -54,6 +68,10 @@ header.office-header {
   letter-spacing: 0.5px;
 }
 
+body[data-theme="light"] .brand-title {
+  color: #1e1e2e;
+}
+
 .nav-tabs {
   display: flex;
   gap: 4px;
@@ -74,7 +92,7 @@ header.office-header {
 
 .nav-tab:hover {
   background-color: var(--border-color);
-  color: #ffffff;
+  color: var(--text-primary);
 }
 
 .nav-tab.active {
@@ -119,6 +137,7 @@ header.office-header {
 
 .btn-header:hover {
   background-color: #45475a;
+  color: #ffffff;
 }
 
 /* Main Container */
@@ -168,6 +187,12 @@ main.office-main {
   border-color: #45475a;
 }
 
+.toolbar-btn.active {
+  background-color: var(--accent-green);
+  color: #ffffff;
+  border-color: var(--accent-mint);
+}
+
 .toolbar-btn.primary {
   background-color: var(--accent-green);
   color: #ffffff;
@@ -184,6 +209,66 @@ main.office-main {
   margin: 0 4px;
 }
 
+.toolbar-select {
+  background-color: var(--bg-dark);
+  color: var(--text-primary);
+  border: 1px solid var(--border-color);
+  border-radius: 4px;
+  padding: 3px 6px;
+  font-size: 12px;
+  outline: none;
+}
+
+.toolbar-select-sm {
+  width: 52px;
+}
+
+.color-pick-label {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-muted);
+  cursor: pointer;
+  padding: 2px 4px;
+  border-radius: 4px;
+  border: 1px solid transparent;
+}
+
+.color-pick-label:hover {
+  background-color: var(--border-color);
+}
+
+.color-pick-input {
+  width: 18px;
+  height: 18px;
+  border: none;
+  border-radius: 3px;
+  cursor: pointer;
+  background: transparent;
+}
+
+/* Find & Replace Panel */
+.find-replace-panel {
+  background-color: var(--bg-sidebar);
+  border-bottom: 1px solid var(--border-color);
+  padding: 6px 12px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.fr-input {
+  background-color: var(--bg-dark);
+  color: var(--text-primary);
+  border: 1px solid var(--border-color);
+  border-radius: 4px;
+  padding: 4px 8px;
+  font-size: 12px;
+  outline: none;
+}
+
 /* Writer Styles */
 .writer-container {
   flex: 1;
@@ -194,9 +279,13 @@ main.office-main {
   padding: 24px 0;
 }
 
+body[data-theme="light"] .writer-container {
+  background-color: #bcc0cc;
+}
+
 .writer-paper {
-  width: 816px; /* standard 8.5in width at 96dpi */
-  min-height: 1056px; /* 11in height */
+  width: 816px;
+  min-height: 1056px;
   background-color: var(--paper-bg);
   color: var(--paper-text);
   padding: 60px 80px;
@@ -213,7 +302,7 @@ main.office-main {
 .writer-paper p { margin-bottom: 12px; }
 .writer-paper ul, .writer-paper ol { margin-left: 24px; margin-bottom: 12px; }
 
-/* Calc Styles */
+/* Calc Styles & Sheet Tabs */
 .calc-formula-section {
   display: flex;
   align-items: center;
@@ -237,13 +326,45 @@ main.office-main {
 .formula-input {
   flex: 1;
   background-color: var(--bg-dark);
-  color: #ffffff;
+  color: var(--text-primary);
   border: 1px solid var(--border-color);
   border-radius: 4px;
   padding: 4px 8px;
   font-family: var(--mono-font);
   font-size: 13px;
   outline: none;
+}
+
+.sheet-tab-bar {
+  display: flex;
+  align-items: center;
+  background-color: var(--bg-sidebar);
+  border-bottom: 1px solid var(--border-color);
+  padding: 4px 8px 0 8px;
+  gap: 4px;
+}
+
+.sheet-tab {
+  background-color: var(--bg-panel);
+  color: var(--text-muted);
+  border: 1px solid var(--border-color);
+  border-bottom: none;
+  border-radius: 4px 4px 0 0;
+  padding: 4px 12px;
+  font-size: 11px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.sheet-tab.active {
+  background-color: var(--accent-green);
+  color: #ffffff;
+  border-color: var(--accent-green);
+}
+
+.sheet-tab-add {
+  padding: 2px 8px;
+  font-size: 14px;
 }
 
 .calc-grid-wrapper {
@@ -295,10 +416,18 @@ main.office-main {
   background-color: #262738;
 }
 
+body[data-theme="light"] .calc-table td.calc-cell:hover {
+  background-color: #dce0e8;
+}
+
 .calc-table td.calc-cell.selected {
   outline: 2px solid var(--accent-mint);
   background-color: #2e3047;
   z-index: 1;
+}
+
+body[data-theme="light"] .calc-table td.calc-cell.selected {
+  background-color: #ccd0da;
 }
 
 /* Impress Styles */
@@ -354,9 +483,13 @@ main.office-main {
   overflow: auto;
 }
 
+body[data-theme="light"] .impress-center {
+  background-color: #bcc0cc;
+}
+
 .slide-canvas {
   width: 720px;
-  height: 405px; /* 16:9 ratio */
+  height: 405px;
   background-color: #1e1e2e;
   border-radius: 6px;
   padding: 30px 40px;
@@ -402,7 +535,7 @@ main.office-main {
   font-size: 12px;
 }
 
-/* Fullscreen Presentation */
+/* Fullscreen Presentation Transitions */
 .presentation-fullscreen {
   position: fixed;
   top: 0; left: 0; width: 100vw; height: 100vh;
@@ -416,7 +549,7 @@ main.office-main {
 
 .fs-slide {
   width: 80vw;
-  height: 45vw; /* 16:9 */
+  height: 45vw;
   max-height: 80vh;
   background-color: #1e1e2e;
   color: #ffffff;
@@ -431,6 +564,21 @@ main.office-main {
 .fs-slide .fs-body { font-size: 2vw; line-height: 1.8; flex: 1; }
 .fs-slide .fs-counter { position: absolute; bottom: 20px; right: 20px; font-size: 1.2vw; color: #888; }
 
+@keyframes fs-fade-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes fs-slide-in {
+  from { transform: translateX(40px); opacity: 0; }
+  to { transform: translateX(0); opacity: 1; }
+}
+
+@keyframes fs-zoom-in {
+  from { transform: scale(0.92); opacity: 0; }
+  to { transform: scale(1); opacity: 1; }
+}
+
 /* Draw Styles */
 .draw-container {
   flex: 1;
@@ -442,11 +590,20 @@ main.office-main {
   overflow: auto;
 }
 
+body[data-theme="light"] .draw-container {
+  background-color: #bcc0cc;
+}
+
 .draw-svg {
   background-color: #ffffff;
   border-radius: 4px;
   box-shadow: 0 4px 16px rgba(0, 0, 0, 0.4);
   cursor: crosshair;
+}
+
+.stroke-range {
+  width: 70px;
+  cursor: pointer;
 }
 
 /* Math Styles */
@@ -455,41 +612,52 @@ main.office-main {
   display: flex;
   flex-direction: column;
   padding: 20px;
-  gap: 16px;
+  gap: 14px;
   max-width: 900px;
   margin: 0 auto;
   width: 100%;
+  overflow-y: auto;
 }
 
 .math-symbols-bar {
   display: flex;
   flex-wrap: wrap;
-  gap: 6px;
+  align-items: center;
+  gap: 5px;
   background-color: var(--bg-panel);
   padding: 10px;
   border-radius: 6px;
   border: 1px solid var(--border-color);
 }
 
+.sym-category {
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--accent-mint);
+  margin-left: 6px;
+  margin-right: 2px;
+}
+
 .sym-btn {
   background-color: var(--bg-dark);
-  color: #ffffff;
+  color: var(--text-primary);
   border: 1px solid var(--border-color);
-  padding: 6px 10px;
+  padding: 4px 8px;
   border-radius: 4px;
-  font-size: 14px;
+  font-size: 13px;
   cursor: pointer;
 }
 
 .sym-btn:hover {
   background-color: var(--accent-green);
+  color: #ffffff;
 }
 
 .math-input {
   width: 100%;
   height: 80px;
   background-color: var(--bg-panel);
-  color: #ffffff;
+  color: var(--text-primary);
   border: 1px solid var(--border-color);
   border-radius: 6px;
   padding: 10px;
@@ -498,7 +666,7 @@ main.office-main {
 }
 
 .math-preview-card {
-  flex: 1;
+  min-height: 140px;
   background-color: var(--bg-panel);
   border: 1px solid var(--border-color);
   border-radius: 6px;
@@ -509,16 +677,50 @@ main.office-main {
   justify-content: center;
 }
 
-.math-unicode-preview {
-  font-size: 32px;
+.math-result-unicode {
+  font-size: 28px;
   font-family: serif;
   color: var(--accent-mint);
-  margin-bottom: 20px;
+  margin-bottom: 12px;
 }
 
-.math-mathml-preview {
-  font-size: 20px;
-  color: #ffffff;
+.math-result-mathml {
+  width: 100%;
+}
+
+.math-history {
+  background-color: var(--bg-panel);
+  border: 1px solid var(--border-color);
+  border-radius: 6px;
+  padding: 10px;
+}
+
+.math-history-title {
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--text-muted);
+  margin-bottom: 6px;
+}
+
+.math-history-items {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.math-history-item {
+  background-color: var(--bg-dark);
+  color: var(--text-primary);
+  border: 1px solid var(--border-color);
+  padding: 3px 8px;
+  border-radius: 4px;
+  font-size: 11px;
+  font-family: var(--mono-font);
+  cursor: pointer;
+}
+
+.math-history-item:hover {
+  background-color: var(--border-color);
 }
 
 /* Storage & Documents Table */
@@ -572,3 +774,177 @@ main.office-main {
 
 .btn-action.open { background-color: var(--accent-green); color: #fff; }
 .btn-action.delete { background-color: #c62828; color: #fff; }
+
+/* Command Palette Overlay */
+.cmd-palette-overlay {
+  position: fixed;
+  top: 0; left: 0; width: 100vw; height: 100vh;
+  background-color: rgba(0, 0, 0, 0.65);
+  z-index: 10000;
+  display: flex;
+  justify-content: center;
+  align-items: flex-start;
+  padding-top: 15vh;
+}
+
+.cmd-palette-box {
+  width: 520px;
+  background-color: var(--bg-panel);
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.6);
+  overflow: hidden;
+}
+
+.cmd-input {
+  width: 100%;
+  background-color: var(--bg-dark);
+  color: var(--text-primary);
+  border: none;
+  border-bottom: 1px solid var(--border-color);
+  padding: 12px 16px;
+  font-size: 14px;
+  font-family: inherit;
+  outline: none;
+}
+
+.cmd-results {
+  max-height: 280px;
+  overflow-y: auto;
+  padding: 6px;
+}
+
+.cmd-result-btn {
+  width: 100%;
+  text-align: left;
+  background: transparent;
+  color: var(--text-primary);
+  border: none;
+  border-radius: 4px;
+  padding: 8px 12px;
+  font-size: 13px;
+  cursor: pointer;
+}
+
+.cmd-result-btn:hover {
+  background-color: var(--border-color);
+}
+
+.cmd-no-result {
+  padding: 16px;
+  text-align: center;
+  color: var(--text-muted);
+  font-size: 13px;
+}
+
+/* Toast Notifications */
+.toast-container {
+  position: fixed;
+  top: 56px;
+  right: 16px;
+  z-index: 10001;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  pointer-events: none;
+}
+
+.toast {
+  background-color: var(--bg-panel);
+  color: var(--text-primary);
+  border: 1px solid var(--border-color);
+  border-radius: 6px;
+  padding: 10px 16px;
+  font-size: 12px;
+  font-weight: 600;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.4);
+  opacity: 0;
+  transform: translateY(-8px);
+  transition: all 0.25s ease;
+  pointer-events: auto;
+}
+
+.toast.visible {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+.toast.toast-success {
+  border-left: 4px solid var(--accent-mint);
+}
+
+.toast.toast-info {
+  border-left: 4px solid #4dabf7;
+}
+
+/* Modal Overlay & Help */
+.modal-overlay {
+  position: fixed;
+  top: 0; left: 0; width: 100vw; height: 100vh;
+  background-color: rgba(0, 0, 0, 0.65);
+  z-index: 10000;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+.modal-box {
+  width: 480px;
+  background-color: var(--bg-panel);
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  padding: 24px;
+  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.6);
+}
+
+.shortcut-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.shortcut-table td {
+  padding: 6px 8px;
+  font-size: 12px;
+  border-bottom: 1px solid var(--border-color);
+}
+
+kbd {
+  background-color: var(--bg-dark);
+  border: 1px solid var(--border-color);
+  border-radius: 3px;
+  padding: 2px 6px;
+  font-size: 11px;
+  font-family: var(--mono-font);
+}
+
+/* Print Media Query */
+@media print {
+  header.office-header,
+  .toolbar,
+  .find-replace-panel,
+  .sheet-tab-bar,
+  .impress-notes-panel,
+  .slide-sidebar,
+  .status-badge,
+  .toast-container,
+  .cmd-palette-overlay {
+    display: none !important;
+  }
+
+  body {
+    background: #ffffff !important;
+    color: #000000 !important;
+  }
+
+  .writer-container {
+    background: transparent !important;
+    padding: 0 !important;
+  }
+
+  .writer-paper {
+    width: 100% !important;
+    min-height: 0 !important;
+    box-shadow: none !important;
+    padding: 0 !important;
+  }
+}
