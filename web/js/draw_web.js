@@ -262,6 +262,40 @@ class DrawWeb {
       elDiamond.setAttribute('stroke', this.strokeColor);
       elDiamond.setAttribute('stroke-width', this.strokeWidth);
       return elDiamond;
+    } else if (this.currentTool === 'terminator') {
+      el.setAttribute('x', pos.x); el.setAttribute('y', pos.y);
+      el.setAttribute('width', '0'); el.setAttribute('height', '0');
+      el.setAttribute('rx', '22');
+      el.setAttribute('fill', this.fillColor);
+      el.setAttribute('stroke', this.strokeColor);
+      el.setAttribute('stroke-width', this.strokeWidth);
+    } else if (this.currentTool === 'io') {
+      const elIo = document.createElementNS(ns, 'polygon');
+      elIo.dataset.sigmaTool = 'io';
+      elIo.setAttribute('data-sigma-shape', '1');
+      elIo.setAttribute('points', `${pos.x},${pos.y} ${pos.x},${pos.y} ${pos.x},${pos.y} ${pos.x},${pos.y}`);
+      elIo.setAttribute('fill', this.fillColor);
+      elIo.setAttribute('stroke', this.strokeColor);
+      elIo.setAttribute('stroke-width', this.strokeWidth);
+      return elIo;
+    } else if (this.currentTool === 'dimension') {
+      const gDim = document.createElementNS(ns, 'g');
+      gDim.dataset.sigmaTool = 'dimension';
+      gDim.setAttribute('data-sigma-shape', '1');
+      const line = document.createElementNS(ns, 'line');
+      line.setAttribute('x1', pos.x); line.setAttribute('y1', pos.y);
+      line.setAttribute('x2', pos.x); line.setAttribute('y2', pos.y);
+      line.setAttribute('stroke', this.strokeColor);
+      line.setAttribute('stroke-width', '1.5');
+      const txt = document.createElementNS(ns, 'text');
+      txt.setAttribute('x', pos.x); txt.setAttribute('y', pos.y - 6);
+      txt.setAttribute('font-size', '11');
+      txt.setAttribute('fill', this.strokeColor);
+      txt.setAttribute('text-anchor', 'middle');
+      txt.textContent = '0px';
+      gDim.appendChild(line);
+      gDim.appendChild(txt);
+      return gDim;
     }
     return el;
   }
@@ -341,6 +375,31 @@ class DrawWeb {
       const midX = minX + w / 2;
       const midY = minY + h / 2;
       this.currentElement.setAttribute('points', `${midX},${minY} ${minX + w},${midY} ${midX},${minY + h} ${minX},${midY}`);
+    } else if (this.currentTool === 'terminator') {
+      this.currentElement.setAttribute('x', Math.min(this.startX, pos.x));
+      this.currentElement.setAttribute('y', Math.min(this.startY, pos.y));
+      this.currentElement.setAttribute('width', Math.abs(pos.x - this.startX));
+      this.currentElement.setAttribute('height', Math.abs(pos.y - this.startY));
+    } else if (this.currentTool === 'io') {
+      const minX = Math.min(this.startX, pos.x);
+      const minY = Math.min(this.startY, pos.y);
+      const w = Math.abs(pos.x - this.startX);
+      const h = Math.abs(pos.y - this.startY);
+      const slant = w * 0.22;
+      this.currentElement.setAttribute('points', `${minX + slant},${minY} ${minX + w},${minY} ${minX + w - slant},${minY + h} ${minX},${minY + h}`);
+    } else if (this.currentTool === 'dimension') {
+      const line = this.currentElement.querySelector('line');
+      const txt = this.currentElement.querySelector('text');
+      if (line) {
+        line.setAttribute('x2', pos.x);
+        line.setAttribute('y2', pos.y);
+      }
+      const dist = Math.round(Math.hypot(pos.x - this.startX, pos.y - this.startY));
+      if (txt) {
+        txt.setAttribute('x', (this.startX + pos.x) / 2);
+        txt.setAttribute('y', (this.startY + pos.y) / 2 - 6);
+        txt.textContent = `|← ${dist}px →|`;
+      }
     }
   }
 

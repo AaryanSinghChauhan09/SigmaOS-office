@@ -539,6 +539,81 @@ class BaseWeb {
           </div>
         </div>
       `;
+    } else if (this.viewMode === 'relations') {
+      // Visual ER / Table Relationships Diagram (MS Access inspired)
+      viewContent = `
+        <div class="base-relations-container" style="flex:1; padding:20px; overflow:auto; background:var(--bg-dark);">
+          <div style="margin-bottom:14px; display:flex; justify-content:space-between; align-items:center;">
+            <h3 style="color:#81c784; font-size:15px;">🔗 Visual Schema Relationships (ER Diagram)</h3>
+            <span style="font-size:12px; color:var(--text-muted);">${tableNames.length} tables in database</span>
+          </div>
+          <div class="base-relations-grid" style="display:flex; flex-wrap:wrap; gap:20px;">
+            ${tableNames.map(tName => {
+              const tbl = this.tables[tName];
+              return `
+                <div class="base-relation-card" style="width:240px; background:var(--bg-panel); border:1px solid var(--border-color); border-radius:6px; overflow:hidden; box-shadow:0 4px 12px rgba(0,0,0,0.3);">
+                  <div style="background:#2e7d32; color:#ffffff; padding:8px 12px; font-weight:700; font-size:13px;">📁 ${tbl.name}</div>
+                  <div style="padding:8px 12px;">
+                    ${tbl.columns.map(c => `
+                      <div style="display:flex; justify-content:space-between; padding:4px 0; border-bottom:1px solid #282838; font-size:12px;">
+                        <span>${c.primaryKey ? '🔑 ' : '• '}${c.name}</span>
+                        <span style="color:#81c784; font-size:10px; font-family:monospace;">${c.type}</span>
+                      </div>
+                    `).join('')}
+                  </div>
+                  <div style="background:var(--bg-sidebar); padding:6px 12px; font-size:11px; color:var(--text-muted); text-align:right;">${tbl.rows.length} records</div>
+                </div>
+              `;
+            }).join('')}
+          </div>
+        </div>
+      `;
+    } else if (this.viewMode === 'report') {
+      // Printable Executive Summary Report (MS Access / Odoo Report inspired)
+      const numCols = table ? table.columns.filter(c => c.type === 'INTEGER' || c.type === 'REAL') : [];
+      viewContent = `
+        <div class="base-report-container" style="flex:1; padding:24px; overflow:auto; background:#ffffff; color:#11111b;">
+          <div style="display:flex; justify-content:space-between; align-items:center; border-bottom:2px solid #2e7d32; padding-bottom:12px; margin-bottom:20px;">
+            <div>
+              <h2 style="color:#2e7d32; font-size:20px; margin:0;">SigmaOS Executive Table Report</h2>
+              <div style="font-size:13px; color:#555;">Table: <strong>${table ? table.name : ''}</strong> · Generated: ${new Date().toLocaleString()}</div>
+            </div>
+            <button class="toolbar-btn primary" onclick="window.print()">🖨️ Print Report</button>
+          </div>
+          <div style="display:flex; gap:16px; margin-bottom:20px;">
+            <div style="flex:1; background:#f4fbf4; border:1px solid #c8e6c9; border-radius:6px; padding:12px; text-align:center;">
+              <div style="font-size:12px; color:#555;">Total Records</div>
+              <div style="font-size:24px; font-weight:bold; color:#2e7d32;">${table ? table.rows.length : 0}</div>
+            </div>
+            <div style="flex:1; background:#f4fbf4; border:1px solid #c8e6c9; border-radius:6px; padding:12px; text-align:center;">
+              <div style="font-size:12px; color:#555;">Columns</div>
+              <div style="font-size:24px; font-weight:bold; color:#2e7d32;">${table ? table.columns.length : 0}</div>
+            </div>
+            ${numCols.slice(0, 2).map(c => `
+              <div style="flex:1; background:#f4fbf4; border:1px solid #c8e6c9; border-radius:6px; padding:12px; text-align:center;">
+                <div style="font-size:12px; color:#555;">Sum of ${c.name}</div>
+                <div style="font-size:24px; font-weight:bold; color:#2e7d32;">${Math.round(this.calculateAggregate(c.name, 'SUM') * 100) / 100}</div>
+              </div>
+            `).join('')}
+          </div>
+          <table style="width:100%; border-collapse:collapse; margin-top:12px; font-size:13px;">
+            <thead>
+              <tr style="background:#2e7d32; color:#ffffff;">
+                <th style="padding:8px; border:1px solid #ccc; text-align:left;">#</th>
+                ${table ? table.columns.map(c => `<th style="padding:8px; border:1px solid #ccc; text-align:left;">${c.name}</th>`).join('') : ''}
+              </tr>
+            </thead>
+            <tbody>
+              ${rows.slice(0, 50).map((r, rIdx) => `
+                <tr style="border-bottom:1px solid #eee;">
+                  <td style="padding:6px 8px; border:1px solid #ddd; color:#888;">${rIdx + 1}</td>
+                  ${table.columns.map(c => `<td style="padding:6px 8px; border:1px solid #ddd;">${this._esc(r[c.name] !== undefined ? r[c.name] : '')}</td>`).join('')}
+                </tr>
+              `).join('')}
+            </tbody>
+          </table>
+        </div>
+      `;
     }
 
     let html = `
@@ -558,6 +633,8 @@ class BaseWeb {
               <button class="toolbar-btn ${this.viewMode === 'grid' ? 'primary' : ''}" onclick="window.baseApp.setViewMode('grid')" title="Table Grid View">📊 Grid</button>
               <button class="toolbar-btn ${this.viewMode === 'form' ? 'primary' : ''}" onclick="window.baseApp.setViewMode('form')" title="Single Record Form View">📝 Form</button>
               <button class="toolbar-btn ${this.viewMode === 'sql' ? 'primary' : ''}" onclick="window.baseApp.setViewMode('sql')" title="SQL Query Console">🔍 SQL</button>
+              <button class="toolbar-btn ${this.viewMode === 'relations' ? 'primary' : ''}" onclick="window.baseApp.setViewMode('relations')" title="Visual Relationships Diagram">🔗 Relations</button>
+              <button class="toolbar-btn ${this.viewMode === 'report' ? 'primary' : ''}" onclick="window.baseApp.setViewMode('report')" title="Executive Summary Report">📄 Report</button>
             </div>
             <div class="toolbar-divider"></div>
             <button class="toolbar-btn" onclick="window.baseApp.promptNewColumn()">+ Column</button>

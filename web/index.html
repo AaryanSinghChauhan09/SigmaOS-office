@@ -96,9 +96,19 @@
         <button class="toolbar-btn" onclick="window.writerApp.insertHorizontalRule()" title="Horizontal rule">─ HR</button>
         <button class="toolbar-btn" onclick="window.writerApp.insertCallout('NOTE')" title="Insert Callout box">💬 Callout</button>
         <button class="toolbar-btn" onclick="window.writerApp.insertCodeBlock()" title="Insert code block">💻 Code</button>
+        <button class="toolbar-btn" onclick="window.writerApp.insertChecklist(prompt('Checklist item:'))" title="Insert checklist task">☑ Task</button>
+        <button class="toolbar-btn" onclick="window.writerApp.setWatermark(prompt('Watermark text (leave empty to remove):', 'CONFIDENTIAL'))" title="Set document watermark">🌊 Watermark</button>
         <button class="toolbar-btn" onclick="window.writerApp.toggleSplitView()" title="Toggle Markdown Split View">Split MD</button>
         <button class="toolbar-btn" onclick="window.writerApp.generateTOC()" title="Generate Table of Contents">📑 TOC</button>
         <button class="toolbar-btn" onclick="window.writerApp.insertFootnote(prompt('Footnote note:'))" title="Insert Footnote">¹ Footnote</button>
+        <button class="toolbar-btn" id="btn-writer-merge" title="Mail Merge tokens">✉ Merge</button>
+        <select class="toolbar-select toolbar-select-sm" onchange="window.writerApp.setLineSpacing(this.value)" title="Line spacing">
+          <option value="1.0">1.0</option>
+          <option value="1.15" selected>1.15</option>
+          <option value="1.5">1.5</option>
+          <option value="2.0">2.0</option>
+        </select>
+        <label class="color-pick-label" title="Page background color">📄 <input type="color" value="#ffffff" class="color-pick-input" onchange="window.writerApp.setPageColor(this.value)"></label>
         <select class="toolbar-select" onchange="window.writerApp.setPageMargins(this.value)" title="Page margins">
           <option value="normal">Normal Margins</option>
           <option value="narrow">Narrow Margins</option>
@@ -150,6 +160,9 @@
         <button id="btn-calc-sort-asc" class="toolbar-btn" title="Sort Range Ascending">▲ A-Z</button>
         <button id="btn-calc-sort-desc" class="toolbar-btn" title="Sort Range Descending">▼ Z-A</button>
         <button id="btn-calc-cond-fmt" class="toolbar-btn" title="Conditional Formatting">🎨 Highlight</button>
+        <button id="btn-calc-text-to-cols" class="toolbar-btn" title="Text to Columns Wizard">✂ Split Cols</button>
+        <button id="btn-calc-goal-seek" class="toolbar-btn" title="Goal Seek Solver">🎯 Goal Seek</button>
+        <button id="btn-calc-validation" class="toolbar-btn" title="Data Validation Dropdown">🔽 Validation</button>
         <div class="toolbar-divider"></div>
         <button id="btn-export-calc-csv" class="toolbar-btn" title="Export as CSV">📋 .csv</button>
         <button id="btn-export-calc-gcf" class="toolbar-btn primary" title="Save as GridCraft (.gcf)">💾 .gcf</button>
@@ -177,6 +190,13 @@
         <div class="toolbar-divider"></div>
         <!-- Slide background color -->
         <label class="color-pick-label" title="Slide background color">🎨 <input id="impress-slide-bg" type="color" value="#1e3a5f" class="color-pick-input"></label>
+        <select class="toolbar-select" onchange="window.impressApp.applyMasterTheme(this.value)" title="Master slide theme">
+          <option value="executive-dark">Theme: Exec Dark</option>
+          <option value="emerald-clean">Theme: Emerald Clean</option>
+          <option value="crimson-modern">Theme: Crimson Modern</option>
+          <option value="cyber-neon">Theme: Cyber Neon</option>
+          <option value="minimal-light">Theme: Minimal Light</option>
+        </select>
         <div class="toolbar-divider"></div>
         <!-- Slide Layout Preset -->
         <select class="toolbar-select" onchange="window.impressApp.applyLayout(window.impressApp.activeSlideIdx, this.value)" title="Slide layout">
@@ -198,6 +218,7 @@
         <div class="toolbar-divider"></div>
         <button class="toolbar-btn" onclick="window.impressApp.startPresentation()" title="Present (F5)">▶ Present (F5)</button>
         <button class="toolbar-btn primary" onclick="window.impressApp.startPresenterMode()" title="Presenter Dual Screen Mode">🖥️ Presenter</button>
+        <button class="toolbar-btn" onclick="window.impressApp.startRehearsal()" title="Rehearse Timings Coach">🎙️ Rehearse</button>
         <button id="btn-export-impress-dcf"  class="toolbar-btn" title="Save as DeckCraft (.dcf)">💾 .dcf</button>
         <button id="btn-export-impress-html" class="toolbar-btn" title="Export as HTML slideshow">.html</button>
       </div>
@@ -222,6 +243,9 @@
         <button class="toolbar-btn draw-tool-btn"        data-tool="line"    onclick="window.drawApp.setTool('line')"    title="Line">╱</button>
         <button class="toolbar-btn draw-tool-btn"        data-tool="arrow"   onclick="window.drawApp.setTool('arrow')"   title="Arrow">→</button>
         <button class="toolbar-btn draw-tool-btn"        data-tool="diamond" onclick="window.drawApp.setTool('diamond')" title="Decision Diamond">◇</button>
+        <button class="toolbar-btn draw-tool-btn"        data-tool="terminator" onclick="window.drawApp.setTool('terminator')" title="Flowchart Terminator">💊</button>
+        <button class="toolbar-btn draw-tool-btn"        data-tool="io" onclick="window.drawApp.setTool('io')" title="Flowchart I/O">▰</button>
+        <button class="toolbar-btn draw-tool-btn"        data-tool="dimension" onclick="window.drawApp.setTool('dimension')" title="Dimension Measurement">📏</button>
         <button class="toolbar-btn draw-tool-btn"        data-tool="sticky"  onclick="window.drawApp.setTool('sticky')"  title="Sticky Note">📝 Note</button>
         <button class="toolbar-btn draw-tool-btn"        data-tool="highlighter" onclick="window.drawApp.setTool('highlighter')" title="Highlighter">🖍 Highlight</button>
         <button class="toolbar-btn draw-tool-btn"        data-tool="connector"   onclick="window.drawApp.setTool('connector')"   title="Smart Connector">⤴ Arrow</button>
@@ -273,10 +297,12 @@
         <button class="toolbar-btn" onclick="window.mathApp.insertTemplate('product')"     title="Product">∏</button>
         <button class="toolbar-btn" onclick="window.mathApp.insertTemplate('limit')"       title="Limit">lim</button>
         <button class="toolbar-btn" onclick="window.mathApp.insertTemplate('derivative')"  title="Derivative">d/dx</button>
-        <button class="toolbar-btn" onclick="window.mathApp.insertTemplate('matrix2x2')"   title="2×2 Matrix">⊞</button>
+        <button class="toolbar-btn" onclick="window.mathApp.insertTemplate('matrix2x2')"   title="2×2 Matrix">2×2 ⊞</button>
+        <button class="toolbar-btn" onclick="window.mathApp.generateMatrix(3,3,'pmatrix')" title="3×3 Matrix">3×3 ⊞</button>
         <button class="toolbar-btn" onclick="window.mathApp.insertTemplate('sqrt')"        title="Square root">√</button>
         <button class="toolbar-btn" onclick="window.mathApp.insertTemplate('euler')"       title="Euler's identity">e^iπ</button>
         <button class="toolbar-btn" onclick="window.mathApp.insertTemplate('quadratic')"   title="Quadratic formula">ax²</button>
+        <button class="toolbar-btn" onclick="window.mathApp.insertNumberedEquation(prompt('Equation tag number:', '1'))" title="Tag equation number">(#) Tag</button>
         <div class="toolbar-divider"></div>
         <button class="toolbar-btn" onclick="window.mathApp.copyToClipboard()" title="Copy Unicode result">📋 Unicode</button>
         <button class="toolbar-btn" onclick="window.mathApp.copyMathML()" title="Copy MathML result">📋 MathML</button>

@@ -92,6 +92,11 @@ class TestWebExporter(unittest.TestCase):
         self.assertIn("insertFootnote", writer_code)
         self.assertIn("setPageMargins", writer_code)
         self.assertIn("insertMathFormula", writer_code)
+        self.assertIn("insertChecklist", writer_code)
+        self.assertIn("setWatermark", writer_code)
+        self.assertIn("setLineSpacing", writer_code)
+        self.assertIn("setPageColor", writer_code)
+        self.assertIn("mailMerge", writer_code)
 
         # Assert Calc Features
         self.assertIn("generatePivotTable", calc_code)
@@ -100,6 +105,11 @@ class TestWebExporter(unittest.TestCase):
         self.assertIn("MEDIAN", calc_code)
         self.assertIn("STDEV", calc_code)
         self.assertIn("NPV", calc_code)
+        self.assertIn("SPARKLINE", calc_code)
+        self.assertIn("generateInlineSparkline", calc_code)
+        self.assertIn("textToColumns", calc_code)
+        self.assertIn("goalSeek", calc_code)
+        self.assertIn("setDataValidation", calc_code)
 
         # Assert Base Features
         self.assertIn("setViewMode", base_code)
@@ -107,6 +117,8 @@ class TestWebExporter(unittest.TestCase):
         self.assertIn("importCSV", base_code)
         self.assertIn("firstRecord", base_code)
         self.assertIn("nextRecord", base_code)
+        self.assertIn("relations", base_code)
+        self.assertIn("report", base_code)
 
         # Assert Draw Features
         self.assertIn("sticky", draw_code)
@@ -114,14 +126,21 @@ class TestWebExporter(unittest.TestCase):
         self.assertIn("connector", draw_code)
         self.assertIn("zoomIn", draw_code)
         self.assertIn("zoomOut", draw_code)
+        self.assertIn("terminator", draw_code)
+        self.assertIn("io", draw_code)
+        self.assertIn("dimension", draw_code)
 
         # Assert Impress Features
         self.assertIn("startPresenterMode", impress_code)
         self.assertIn("comparison", impress_code)
+        self.assertIn("applyMasterTheme", impress_code)
+        self.assertIn("startRehearsal", impress_code)
 
         # Assert Math Features
         self.assertIn("copyMathML", math_code)
         self.assertIn("insertIntoWriter", math_code)
+        self.assertIn("generateMatrix", math_code)
+        self.assertIn("insertNumberedEquation", math_code)
 
         # Assert Storage Features
         self.assertIn("createSnapshot", storage_code)

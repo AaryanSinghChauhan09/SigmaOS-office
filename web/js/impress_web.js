@@ -45,6 +45,83 @@ class ImpressWeb {
     });
   }
 
+  // --- Master Slide Themes (LibreOffice Impress / Google Slides inspired) ---
+  applyMasterTheme(themeName = 'executive-dark', applyToAll = true) {
+    const themes = {
+      'executive-dark': { bg: '#0f172a', textColor: '#ffffff', gradient: 'linear-gradient(135deg, #0f172a, #1e293b)' },
+      'emerald-clean':  { bg: '#064e3b', textColor: '#ecfdf5', gradient: 'linear-gradient(135deg, #064e3b, #047857)' },
+      'crimson-modern': { bg: '#4c0519', textColor: '#fff1f2', gradient: 'linear-gradient(135deg, #4c0519, #881337)' },
+      'cyber-neon':     { bg: '#030712', textColor: '#f0fdfa', gradient: 'linear-gradient(135deg, #030712, #083344)' },
+      'minimal-light':  { bg: '#ffffff', textColor: '#11111b', gradient: null }
+    };
+    const t = themes[themeName] || themes['executive-dark'];
+    const targetSlides = applyToAll ? this.slides : [this.slides[this.activeSlideIdx]];
+    targetSlides.forEach(s => {
+      s.bg = t.bg;
+      s.textColor = t.textColor;
+      s.gradient = t.gradient;
+    });
+    this.renderActiveSlide();
+    this.renderThumbnails();
+    this.triggerAutoSave();
+    window.sigmaApp && window.sigmaApp.showNotification(`Applied '${themeName}' master theme`, 'success');
+  }
+
+  // --- Presentation Rehearsal Coach (MS PowerPoint Rehearse inspired) ---
+  startRehearsal() {
+    const timings = [];
+    let current = this.activeSlideIdx;
+    let slideStartTime = Date.now();
+
+    window.sigmaApp && window.sigmaApp.showNotification('Rehearsal mode started (Space / Arrows to advance)', 'info');
+
+    const overlay = document.createElement('div');
+    overlay.className = 'presentation-fullscreen';
+
+    const render = () => {
+      const s = this.slides[current];
+      const bgStyle = s.gradient ? `background:${s.gradient}` : `background:${s.bg || '#1e3a5f'}`;
+      overlay.innerHTML = `
+        <div class="fs-slide" style="${bgStyle}; color:${s.textColor || '#ffffff'};">
+          <div style="position:absolute; top:20px; left:20px; background:#f59e0b; color:#111; padding:4px 10px; border-radius:4px; font-weight:bold; font-size:12px;">🎙️ REHEARSAL COACH</div>
+          <h1>${this._esc(s.title)}</h1>
+          <div class="fs-body">${(s.content || '').replace(/\n/g, '<br>')}</div>
+          <div class="fs-counter">Slide ${current + 1} / ${this.slides.length}</div>
+        </div>
+      `;
+    };
+
+    const next = () => {
+      const duration = Math.round((Date.now() - slideStartTime) / 1000);
+      timings.push({ slide: current + 1, title: this.slides[current].title, duration });
+      slideStartTime = Date.now();
+      if (current + 1 < this.slides.length) {
+        current++;
+        render();
+      } else {
+        finish();
+      }
+    };
+
+    const finish = () => {
+      if (document.body.contains(overlay)) document.body.removeChild(overlay);
+      window.removeEventListener('keydown', keyHandler);
+      const totalSec = timings.reduce((a, b) => a + b.duration, 0);
+      let summary = `Rehearsal Report (${totalSec}s total):\n`;
+      timings.forEach(t => { summary += `• Slide ${t.slide} (${t.title}): ${t.duration}s\n`; });
+      alert(summary);
+    };
+
+    const keyHandler = (e) => {
+      if (e.key === 'Escape') finish();
+      else if (e.key === ' ' || e.key === 'ArrowRight') { e.preventDefault(); next(); }
+    };
+
+    window.addEventListener('keydown', keyHandler);
+    document.body.appendChild(overlay);
+    render();
+  }
+
   // --- Slide background & theme (LibreOffice Impress Master Page-inspired) ---
   setSlideBackground(index, color) {
     if (!this.slides[index]) return;

@@ -19,6 +19,7 @@ class CalcWeb {
     this.sheets = { Sheet1: {} };    // sheetName -> cells map
     this.activeSheet = 'Sheet1';
     this.cellFormats = {};           // coord -> {bold, italic, underline, fmt}
+    this.dataValidations = {};       // coord -> [allowedValues]
     this._saveTimer = null;
 
     this.renderGrid();
@@ -633,6 +634,17 @@ class CalcWeb {
         }
         return cf.reduce((acc, val, idx) => acc + val / Math.pow(1 + rate, idx + 1), 0);
       }
+
+      if (fn === 'SPARKLINE' && argList.length > 0) {
+        const rangeStr = argList[0].trim();
+        const type = argList.length > 1 ? String(this.evalExpr(argList[1])).toLowerCase() : 'line';
+        if (rangeStr.includes(':')) {
+          const [s, e] = rangeStr.split(':');
+          const vals = this.getRangeValues(s.trim(), e.trim()).map(v => parseFloat(v) || 0);
+          return this.generateInlineSparkline(vals, type);
+        }
+        return '';
+      }
     }
 
     return this.evalExpr(formula.trim());
@@ -894,6 +906,101 @@ class CalcWeb {
 
     this.recalculateAll();
     window.sigmaApp && window.sigmaApp.showNotification(`Range sorted ${ascending ? 'A-Z' : 'Z-A'}`, 'success');
+  }
+
+  // --- Inline Sparklines (Google Sheets / Excel inspired) ---
+  generateInlineSparkline(data, type = 'line') {
+    if (!data || data.length === 0) return '';
+    const w = 90, h = 18, pad = 2;
+    const maxVal = Math.max(...data, 1);
+    const minVal = Math.min(...data, 0);
+    const range = (maxVal - minVal) || 1;
+
+    if (type === 'bar') {
+      const barW = Math.max(3, (w - pad * 2) / data.length - 2);
+      let bars = '';
+      data.forEach((v, i) => {
+        const barH = Math.max(2, ((v - minVal) / range) * (h - pad * 2));
+        const x = pad + i * (barW + 2);
+        const y = h - pad - barH;
+        bars += `<rect x="${x}" y="${y}" width="${barW}" height="${barH}" fill="#81c784" rx="1"/>`;
+      });
+      return `<svg xmlns="http://www.w3.org/2000/svg" width="${w}" height="${h}">${bars}</svg>`;
+    } else {
+      let points = [];
+      data.forEach((v, i) => {
+        const x = pad + (i / Math.max(1, data.length - 1)) * (w - pad * 2);
+        const y = h - pad - ((v - minVal) / range) * (h - pad * 2);
+        points.push(`${Math.round(x)},${Math.round(y)}`);
+      });
+      return `<svg xmlns="http://www.w3.org/2000/svg" width="${w}" height="${h}"><polyline points="${points.join(' ')}" fill="none" stroke="#4dabf7" stroke-width="1.8"/><circle cx="${points[points.length-1].split(',')[0]}" cy="${points[points.length-1].split(',')[1]}" r="2" fill="#81c784"/></svg>`;
+    }
+  }
+
+  // --- Text to Columns Wizard (Excel / LibreOffice Calc inspired) ---
+  textToColumns(sourceColIdx = 0, delimiter = ',') {
+    let splitCount = 0;
+    for (let r = 1; r <= this.numRows; r++) {
+      const srcCoord = `${this.colName(sourceColIdx)}${r}`;
+      const rawVal = String(this.getCellValue(srcCoord) || '').trim();
+      if (rawVal.includes(delimiter)) {
+        const tokens = rawVal.split(delimiter).map(t => t.trim());
+        tokens.forEach((tok, offset) => {
+          const targetCoord = `${this.colName(sourceColIdx + offset)}${r}`;
+          this.setCellRaw(targetCoord, tok);
+        });
+        splitCount++;
+      }
+    }
+    this.recalculateAll();
+    window.sigmaApp && window.sigmaApp.showNotification(`Text to columns: ${splitCount} rows split by '${delimiter}'`, 'success');
+    return splitCount;
+  }
+
+  // --- Goal Seek Solver (Excel / OpenOffice Calc inspired) ---
+  goalSeek(targetCoord, targetVal, variableCoord, maxIter = 40, tolerance = 0.001) {
+    const target = parseFloat(targetVal);
+    let x0 = parseFloat(this.getCellValue(variableCoord)) || 0;
+    let x1 = x0 + 1.0;
+
+    this.setCellRaw(variableCoord, String(x0));
+    this.recalculateAll();
+    let y0 = (parseFloat(this.getCellValue(targetCoord)) || 0) - target;
+
+    for (let i = 0; i < maxIter; i++) {
+      this.setCellRaw(variableCoord, String(x1));
+      this.recalculateAll();
+      let y1 = (parseFloat(this.getCellValue(targetCoord)) || 0) - target;
+
+      if (Math.abs(y1) < tolerance) {
+        window.sigmaApp && window.sigmaApp.showNotification(`Goal seek converged in ${i + 1} steps: ${variableCoord} = ${Math.round(x1 * 1000) / 1000}`, 'success');
+        return x1;
+      }
+
+      const diff = y1 - y0;
+      if (Math.abs(diff) < 1e-12) break;
+      const xNext = x1 - y1 * (x1 - x0) / diff;
+      x0 = x1;
+      y0 = y1;
+      x1 = xNext;
+    }
+
+    this.setCellRaw(variableCoord, String(Math.round(x1 * 1000) / 1000));
+    this.recalculateAll();
+    window.sigmaApp && window.sigmaApp.showNotification(`Goal seek solution: ${variableCoord} ≈ ${Math.round(x1 * 1000) / 1000}`, 'info');
+    return x1;
+  }
+
+  // --- Data Validation with In-Cell Dropdown (Google Sheets / Excel inspired) ---
+  setDataValidation(coord, optionsList = ['Approved', 'Pending', 'Rejected']) {
+    this.dataValidations[coord.toUpperCase()] = optionsList;
+    const td = this.table.querySelector(`td[data-coord="${coord.toUpperCase()}"]`);
+    if (td) {
+      td.title = `Validation: ${optionsList.join(', ')}`;
+      td.classList.add('cell-validated');
+    }
+    window.sigmaApp && window.sigmaApp.showNotification(`Validation set on ${coord}: [${optionsList.join(', ')}]`, 'info');
+    this.triggerAutoSave();
   }
 
   // --- CSV I/O (improved quoted-field handling) ---

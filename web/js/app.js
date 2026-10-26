@@ -382,6 +382,47 @@ document.addEventListener('DOMContentLoaded', async () => {
     window.calcApp.applyConditionalFormat(r, op, val);
   });
 
+  // Text to Columns Wizard & Goal Seek & Data Validation
+  document.getElementById('btn-calc-text-to-cols')?.addEventListener('click', () => {
+    const colStr = prompt('Source Column Letter (e.g. A):', 'A') || 'A';
+    const delim = prompt('Delimiter (comma, tab, semicolon, space):', ',') || ',';
+    const colIdx = colStr.toUpperCase().charCodeAt(0) - 65;
+    window.calcApp.textToColumns(colIdx, delim);
+  });
+
+  document.getElementById('btn-calc-goal-seek')?.addEventListener('click', () => {
+    const targetCell = prompt('Set Cell (formula coordinate, e.g. B5):', 'B5');
+    if (!targetCell) return;
+    const targetVal = prompt('To Target Value:', '100');
+    if (!targetVal) return;
+    const changeCell = prompt('By Changing Cell (e.g. B1):', 'B1');
+    if (!changeCell) return;
+    window.calcApp.goalSeek(targetCell, targetVal, changeCell);
+  });
+
+  document.getElementById('btn-calc-validation')?.addEventListener('click', () => {
+    const coord = prompt('Cell Coordinate (e.g. C2):', window.calcApp.activeCoord || 'C2');
+    if (!coord) return;
+    const opts = prompt('Allowed options (comma separated):', 'Approved,Pending,Rejected') || 'Approved,Pending,Rejected';
+    window.calcApp.setDataValidation(coord, opts.split(',').map(s => s.trim()));
+  });
+
+  // Writer Mail Merge
+  document.getElementById('btn-writer-merge')?.addEventListener('click', () => {
+    const raw = prompt('Enter tokens (key=val,key=val):', 'name=Alice,role=Engineer,company=SigmaOS');
+    if (!raw) return;
+    const dict = {};
+    if (raw.startsWith('{')) {
+      try { Object.assign(dict, JSON.parse(raw)); } catch (_) {}
+    } else {
+      raw.split(',').forEach(pair => {
+        const [k, v] = pair.split('=');
+        if (k) dict[k.trim()] = (v || '').trim();
+      });
+    }
+    window.writerApp.mailMerge(dict);
+  });
+
   // Workspace Backup & Restore
   async function backupWorkspace() {
     if (!window.storageEngine) return;

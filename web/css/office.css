@@ -1226,6 +1226,25 @@ kbd {
   overflow: hidden;
 }
 
+/* Watermark & Validation */
+.writer-watermark-overlay {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%) rotate(-45deg);
+  font-size: 5rem;
+  font-weight: 900;
+  color: rgba(180, 180, 180, 0.14);
+  pointer-events: none;
+  user-select: none;
+  white-space: nowrap;
+  z-index: 10;
+}
+
+.cell-validated {
+  border-right: 3px solid #81c784 !important;
+}
+
 /* Print Media Query */
 @media print {
   header.office-header,

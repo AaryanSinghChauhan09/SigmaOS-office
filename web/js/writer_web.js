@@ -246,6 +246,61 @@ class WriterWeb {
     return `<p>${html}</p>`;
   }
 
+  // --- Interactive Checklist / To-Dos (Odoo Knowledge / Notion inspired) ---
+  insertChecklist(itemText = 'To-do item') {
+    const html = `<div class="writer-checklist-item" style="display:flex; align-items:center; gap:8px; margin:4px 0;"><input type="checkbox" style="cursor:pointer; width:16px; height:16px;"><span>${itemText}</span></div><p><br></p>`;
+    this.execCommand('insertHTML', html);
+  }
+
+  // --- Document Watermark Overlay (MS Word / LibreOffice inspired) ---
+  setWatermark(text = 'CONFIDENTIAL') {
+    let wm = this.editor.querySelector('.writer-watermark-overlay');
+    if (!text || text.trim() === '') {
+      if (wm) wm.remove();
+      window.sigmaApp && window.sigmaApp.showNotification('Watermark removed', 'info');
+      return;
+    }
+    if (!wm) {
+      wm = document.createElement('div');
+      wm.className = 'writer-watermark-overlay';
+      this.editor.style.position = 'relative';
+      this.editor.appendChild(wm);
+    }
+    wm.innerText = text.toUpperCase();
+    window.sigmaApp && window.sigmaApp.showNotification(`Watermark set: ${text.toUpperCase()}`, 'info');
+    this.triggerAutoSave();
+  }
+
+  // --- Line Spacing & Page Color (MS Word / Google Docs inspired) ---
+  setLineSpacing(factor = 1.5) {
+    this.editor.style.lineHeight = String(factor);
+    window.sigmaApp && window.sigmaApp.showNotification(`Line spacing: ${factor}`, 'info');
+    this.triggerAutoSave();
+  }
+
+  setPageColor(color = '#ffffff') {
+    this.editor.style.backgroundColor = color;
+    this.triggerAutoSave();
+  }
+
+  // --- Mail Merge & Template Tokens (LibreOffice Writer / OpenOffice inspired) ---
+  mailMerge(record = {}) {
+    let content = this.editor.innerHTML;
+    let matchCount = 0;
+    for (const [key, val] of Object.entries(record)) {
+      const tokenRegex = new RegExp(`\\{\\{\\s*${key}\\s*\\}\\}`, 'gi');
+      if (tokenRegex.test(content)) {
+        content = content.replace(tokenRegex, String(val));
+        matchCount++;
+      }
+    }
+    this.editor.innerHTML = content;
+    this.updateStats();
+    this.triggerAutoSave();
+    window.sigmaApp && window.sigmaApp.showNotification(`Mail merge: ${matchCount} tokens replaced`, 'success');
+    return matchCount;
+  }
+
   // --- Callouts & Alerts (inspired by GitHub / Notion Callouts) ---
   insertCallout(type = 'NOTE', text = 'Important note content goes here.') {
     const borderColors = { NOTE: '#4dabf7', TIP: '#81c784', WARNING: '#ffb74d', CAUTION: '#e57373', IMPORTANT: '#ba68c8' };

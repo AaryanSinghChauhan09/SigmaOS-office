@@ -52,6 +52,28 @@ class MathWeb {
     if (templates[name]) this.insertSymbol(templates[name]);
   }
 
+  // --- Dynamic Matrix Generator (LibreOffice Math / LaTeX inspired) ---
+  generateMatrix(rows = 3, cols = 3, env = 'pmatrix') {
+    let rowsArr = [];
+    for (let r = 0; r < rows; r++) {
+      let cells = [];
+      for (let c = 0; c < cols; c++) {
+        cells.push(`a_{${r+1}${c+1}}`);
+      }
+      rowsArr.push(cells.join(' & '));
+    }
+    const snippet = `\\begin{${env}}\n${rowsArr.join(' \\\\\n')}\n\\end{${env}}`;
+    this.insertSymbol(snippet);
+  }
+
+  // --- Academic Equation Numbering (LibreOffice Math / IEEE inspired) ---
+  insertNumberedEquation(number = 1) {
+    const cur = this.input ? this.input.value : '';
+    this.input.value = `${cur.trim()} \\tag{${number}}`;
+    this.render();
+    window.sigmaApp && window.sigmaApp.showNotification(`Equation tagged (${number})`, 'info');
+  }
+
   // --- Unicode LaTeX translation ---
   toUnicode() {
     const latex = this.input ? this.input.value : '';
