@@ -1,5 +1,5 @@
 // SigmaOS Office Service Worker (PWA Offline Runtime for Chromium)
-const CACHE_NAME = 'sigma-office-v2.5.0';
+const CACHE_NAME = 'sigma-office-v2.6.0';
 
 const ASSETS_TO_CACHE = [
   './',

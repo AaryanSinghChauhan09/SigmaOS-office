@@ -119,6 +119,33 @@
         <button class="toolbar-btn" id="btn-insert-link" title="Insert hyperlink">🔗 Link</button>
         <button class="toolbar-btn" id="btn-insert-image" title="Insert image from file">🖼 Image</button>
         <div class="toolbar-divider"></div>
+        <!-- Document Comments & Review (Google Docs / MS Word inspired) -->
+        <button class="toolbar-btn" onclick="window.writerApp.addComment()" title="Add comment to selection">&#128172; Comment</button>
+        <button class="toolbar-btn" onclick="window.writerApp.toggleCommentsPanel()" title="Toggle comments sidebar">&#128203; Comments</button>
+        <button class="toolbar-btn" onclick="window.writerApp.showDocumentStats()" title="Document statistics &amp; readability">&#128202; Stats</button>
+        <button class="toolbar-btn" onclick="window.writerApp.pickFormat()" title="Format Painter">&#128396; Paint</button>
+        <div class="toolbar-divider"></div>
+        <!-- Version History & Track Changes (MS Word inspired) -->
+        <button class="toolbar-btn" onclick="window.writerApp.captureVersion(prompt('Version label:',''))" title="Capture document version snapshot">&#128247; Snapshot</button>
+        <button class="toolbar-btn" onclick="window.writerApp.showVersionHistory()" title="View version history">&#128337; History</button>
+        <button class="toolbar-btn" onclick="window.writerApp.enableTrackChanges(prompt('Author:','Author'))" title="Enable track changes">&#9999;&#65039; Track</button>
+        <button class="toolbar-btn" onclick="window.writerApp.acceptAllChanges()" title="Accept all changes">&#10003; Accept</button>
+        <button class="toolbar-btn" onclick="window.writerApp.rejectAllChanges()" title="Reject all changes">&#10005; Reject</button>
+        <div class="toolbar-divider"></div>
+        <!-- Paragraph Styles & AutoCorrect -->
+        <select class="toolbar-select" onchange="if(this.value)window.writerApp.applyParagraphStyle(this.value);this.value=''" title="Paragraph Styles">
+          <option value="">&#8212; Styles &#8212;</option>
+          <option value="Heading1">Heading 1</option>
+          <option value="Heading2">Heading 2</option>
+          <option value="Heading3">Heading 3</option>
+          <option value="Body">Body Text</option>
+          <option value="Preformatted">Preformatted</option>
+          <option value="Quote">Block Quote</option>
+          <option value="Caption">Caption</option>
+        </select>
+        <button class="toolbar-btn" onclick="window.writerApp.insertPageBreak()" title="Insert page break">&#8629; Break</button>
+        <button class="toolbar-btn" onclick="window.writerApp.enableAutoCorrect()" title="Enable AutoCorrect">&#10024; AutoCorr</button>
+        <div class="toolbar-divider"></div>
         <!-- Find/Replace -->
         <button class="toolbar-btn" id="btn-writer-find-replace" title="Find & Replace (Ctrl+H)">🔍 F&R</button>
         <div class="toolbar-divider"></div>
@@ -164,6 +191,11 @@
         <button id="btn-calc-goal-seek" class="toolbar-btn" title="Goal Seek Solver">🎯 Goal Seek</button>
         <button id="btn-calc-validation" class="toolbar-btn" title="Data Validation Dropdown">🔽 Validation</button>
         <div class="toolbar-divider"></div>
+        <button class="toolbar-btn" onclick="window.calcApp.setFreezePanes(parseInt(prompt('Freeze rows:','1')),parseInt(prompt('Freeze cols:','1')))" title="Freeze Panes">&#10052; Freeze</button>
+        <button class="toolbar-btn" onclick="window.calcApp.autoFill(window.calcApp.activeCoord,prompt('Fill to coord (e.g. A10):','A10')||'A10','down')" title="AutoFill Down">&#8595; Fill</button>
+        <button class="toolbar-btn" onclick="window.calcApp.promptNamedRange()" title="Define Named Range">&#9744; Name</button>
+        <button class="toolbar-btn" onclick="window.calcApp.addCellNote(window.calcApp.activeCoord)" title="Add Cell Note">&#128203; Note</button>
+        <button class="toolbar-btn" onclick="window.calcApp.duplicateRow(parseInt(prompt('Duplicate row number:','1'))||1)" title="Duplicate Row">&#10021; Dup Row</button>
         <button id="btn-export-calc-csv" class="toolbar-btn" title="Export as CSV">📋 .csv</button>
         <button id="btn-export-calc-gcf" class="toolbar-btn primary" title="Save as GridCraft (.gcf)">💾 .gcf</button>
       </div>
@@ -219,6 +251,12 @@
         <button class="toolbar-btn" onclick="window.impressApp.startPresentation()" title="Present (F5)">▶ Present (F5)</button>
         <button class="toolbar-btn primary" onclick="window.impressApp.startPresenterMode()" title="Presenter Dual Screen Mode">🖥️ Presenter</button>
         <button class="toolbar-btn" onclick="window.impressApp.startRehearsal()" title="Rehearse Timings Coach">🎙️ Rehearse</button>
+        <div class="toolbar-divider"></div>
+        <!-- Impress Advanced (Animation, Outline, Summary, QR) -->
+        <button class="toolbar-btn" onclick="window.impressApp.showAnimationPane()" title="Animation Pane">&#127917; Animate</button>
+        <button class="toolbar-btn" onclick="window.impressApp.showOutlineView()" title="Outline View">&#128221; Outline</button>
+        <button class="toolbar-btn" onclick="window.impressApp.generateSummarySlide()" title="Auto-generate Summary Slide">&#128196; Summary</button>
+        <button class="toolbar-btn" onclick="window.impressApp.insertQRCode()" title="Insert QR Code element">&#9726; QR</button>
         <button id="btn-export-impress-dcf"  class="toolbar-btn" title="Save as DeckCraft (.dcf)">💾 .dcf</button>
         <button id="btn-export-impress-html" class="toolbar-btn" title="Export as HTML slideshow">.html</button>
       </div>
@@ -268,6 +306,21 @@
         <button id="btn-draw-front"     class="toolbar-btn" title="Bring to front">⬆</button>
         <button id="btn-draw-back"      class="toolbar-btn" title="Send to back">⬇</button>
         <button id="btn-draw-grid"      class="toolbar-btn" title="Toggle grid snap">⊞ Grid</button>
+        <button class="toolbar-btn" onclick="window.drawApp.showLayerManager()" title="Layer Manager">&#128202; Layers</button>
+        <button class="toolbar-btn" onclick="window.drawApp.alignSelected(prompt('Align: left, center-h, right, top, center-v, bottom','center-h')||'center-h')" title="Align Selected Shapes">&#9135; Align</button>
+        <button class="toolbar-btn" onclick="window.drawApp.groupSelected()" title="Group selected shapes">&#9633; Group</button>
+        <button class="toolbar-btn" onclick="window.drawApp.ungroupSelected()" title="Ungroup selected group">&#9634; Ungroup</button>
+        <select class="toolbar-select" onchange="if(this.value)window.drawApp.applyColourPreset(this.value);this.value=''" title="Colour Presets">
+          <option value="">&#9678; Colour Preset</option>
+          <option value="material-red">Material Red</option>
+          <option value="material-blue">Material Blue</option>
+          <option value="material-green">Material Green</option>
+          <option value="material-amber">Material Amber</option>
+          <option value="material-purple">Material Purple</option>
+          <option value="monochrome-dark">Mono Dark</option>
+          <option value="monochrome-light">Mono Light</option>
+          <option value="neon-cyber">Neon Cyber</option>
+        </select>
         <div class="toolbar-divider"></div>
         <!-- Zoom controls -->
         <button class="toolbar-btn" onclick="window.drawApp.zoomIn()" title="Zoom in">+</button>
@@ -378,7 +431,27 @@
     </section>
 
     <!-- 6. Base Panel (DataCraft – inspired by LibreOffice Base, Airtable, SQLite Viewer) -->
+    <!-- 6. Base Panel (DataCraft – inspired by LibreOffice Base, MS Access, Odoo) -->
     <section id="panel-base" class="app-panel">
+      <div class="toolbar">
+        <button class="toolbar-btn primary" onclick="window.baseApp.promptNewTable()" title="Create new table">+ Table</button>
+        <button class="toolbar-btn" onclick="window.baseApp.promptNewColumn()" title="Add column to active table">+ Column</button>
+        <button class="toolbar-btn" onclick="window.baseApp.insertRow()" title="Insert new row">+ Row</button>
+        <div class="toolbar-divider"></div>
+        <button class="toolbar-btn" onclick="window.baseApp.setViewMode('grid')" title="Grid View">&#9776; Grid</button>
+        <button class="toolbar-btn" onclick="window.baseApp.buildFormView()" title="Form View (record by record)">&#128203; Form</button>
+        <button class="toolbar-btn" onclick="window.baseApp.setViewMode('sql')" title="SQL Query Console">&#10095; SQL</button>
+        <button class="toolbar-btn" onclick="window.baseApp.setViewMode('relations')" title="ER Relationship Diagram">&#128279; ER Diagram</button>
+        <button class="toolbar-btn" onclick="window.baseApp.setViewMode('report')" title="Executive Report Generator">&#128196; Report</button>
+        <div class="toolbar-divider"></div>
+        <button class="toolbar-btn" onclick="window.baseApp.showRelationshipsPanel()" title="Table Relationships Manager">&#128279; Relationships</button>
+        <button class="toolbar-btn" onclick="window.baseApp.promptJoinQuery()" title="JOIN two tables">&#8896; JOIN</button>
+        <div class="toolbar-divider"></div>
+        <button class="toolbar-btn" onclick="window.baseApp.promptImportCSV()" title="Import CSV into new table">&#128229; Import CSV</button>
+        <button class="toolbar-btn" onclick="window.baseApp.exportCSV()" title="Export active table as CSV">&#128228; CSV</button>
+        <button class="toolbar-btn" onclick="window.baseApp.exportSQL()" title="Export as SQL">&#128228; SQL</button>
+        <button class="toolbar-btn primary" onclick="window.baseApp.exportDBCF()" title="Save as DataCraft (.dbcf)">&#128190; .dbcf</button>
+      </div>
       <div id="base-container" style="flex:1; display:flex; flex-direction:column; overflow:hidden;"></div>
     </section>
 

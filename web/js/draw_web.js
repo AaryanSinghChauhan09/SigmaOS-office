@@ -663,6 +663,184 @@ class DrawWeb {
     } catch (e) { console.error('VectorCraft load error:', e); }
   }
 
+  // --- Layer Manager (Illustrator / LibreOffice Draw Layers inspired) ---
+  getLayers() {
+    if (!this._layers) {
+      this._layers = [
+        { id: 'layer_bg', name: 'Background', visible: true, locked: false },
+        { id: 'layer_main', name: 'Main', visible: true, locked: false },
+        { id: 'layer_annotations', name: 'Annotations', visible: true, locked: false }
+      ];
+    }
+    return this._layers;
+  }
+
+  showLayerManager() {
+    const layers = this.getLayers();
+    const rows = layers.map((l, i) => `
+      <tr>
+        <td style="padding:8px 12px;"><input type="text" value="${this._esc(l.name)}" class="fr-input" style="width:120px;" onchange="window.drawApp._layers[${i}].name=this.value;"></td>
+        <td style="padding:8px 12px;text-align:center;"><input type="checkbox" ${l.visible ? 'checked' : ''} onchange="window.drawApp.setLayerVisible(${i},this.checked)" title="Visible"></td>
+        <td style="padding:8px 12px;text-align:center;"><input type="checkbox" ${l.locked ? 'checked' : ''} onchange="window.drawApp.setLayerLocked(${i},this.checked)" title="Locked">🔒</td>
+        <td style="padding:8px 12px;">
+          ${i > 0 ? `<button class="toolbar-btn" onclick="window.drawApp.moveLayerUp(${i});document.getElementById('draw-layer-modal').remove();window.drawApp.showLayerManager();">▲</button>` : ''}
+          ${i < layers.length - 1 ? `<button class="toolbar-btn" onclick="window.drawApp.moveLayerDown(${i});document.getElementById('draw-layer-modal').remove();window.drawApp.showLayerManager();">▼</button>` : ''}
+        </td>
+      </tr>`).join('');
+
+    document.getElementById('draw-layer-modal')?.remove();
+    document.body.insertAdjacentHTML('beforeend', `
+      <div id="draw-layer-modal" class="office-modal-backdrop">
+        <div class="office-modal-card" style="min-width:440px;">
+          <div class="office-modal-header">
+            <h3>🗂️ Layer Manager</h3>
+            <button class="office-modal-close" onclick="document.getElementById('draw-layer-modal').remove()">✕</button>
+          </div>
+          <div class="office-modal-body">
+            <table style="width:100%;border-collapse:collapse;">
+              <thead><tr>
+                <th style="text-align:left;padding:8px 12px;border-bottom:2px solid var(--accent);">Name</th>
+                <th style="padding:8px 12px;border-bottom:2px solid var(--accent);">👁</th>
+                <th style="padding:8px 12px;border-bottom:2px solid var(--accent);">🔒</th>
+                <th style="padding:8px 12px;border-bottom:2px solid var(--accent);"></th>
+              </tr></thead>
+              <tbody>${rows}</tbody>
+            </table>
+          </div>
+          <div class="office-modal-footer">
+            <button class="toolbar-btn primary" onclick="window.drawApp.addLayer();document.getElementById('draw-layer-modal').remove();window.drawApp.showLayerManager();">+ Add Layer</button>
+            <button class="toolbar-btn" onclick="document.getElementById('draw-layer-modal').remove()">Close</button>
+          </div>
+        </div>
+      </div>`);
+  }
+
+  addLayer(name = null) {
+    if (!this._layers) this.getLayers();
+    const layerName = name || `Layer ${this._layers.length + 1}`;
+    this._layers.push({ id: 'layer_' + Date.now(), name: layerName, visible: true, locked: false });
+    window.sigmaApp && window.sigmaApp.showNotification(`Layer "${layerName}" added`, 'info');
+  }
+
+  setLayerVisible(idx, visible) {
+    if (!this._layers || !this._layers[idx]) return;
+    this._layers[idx].visible = visible;
+    this.svg.querySelectorAll(`[data-layer="${this._layers[idx].id}"]`)
+      .forEach(el => { el.style.display = visible ? '' : 'none'; });
+  }
+
+  setLayerLocked(idx, locked) {
+    if (!this._layers || !this._layers[idx]) return;
+    this._layers[idx].locked = locked;
+    window.sigmaApp && window.sigmaApp.showNotification(`Layer "${this._layers[idx].name}" ${locked ? 'locked' : 'unlocked'}`, 'info');
+  }
+
+  moveLayerUp(idx) {
+    if (!this._layers || idx === 0) return;
+    [this._layers[idx - 1], this._layers[idx]] = [this._layers[idx], this._layers[idx - 1]];
+  }
+
+  moveLayerDown(idx) {
+    if (!this._layers || idx >= this._layers.length - 1) return;
+    [this._layers[idx], this._layers[idx + 1]] = [this._layers[idx + 1], this._layers[idx]];
+  }
+
+  // --- Align & Distribute Tools (LibreOffice Draw / Inkscape Align & Distribute inspired) ---
+  alignSelected(alignment) {
+    const svgRect = this.svg.getBoundingClientRect();
+    const selected = this.shapes.filter(s => s.getAttribute('data-selected') === 'true');
+    if (selected.length === 0) {
+      window.sigmaApp && window.sigmaApp.showNotification('Select shapes first (use Select tool)', 'info');
+      return;
+    }
+    const getBBox = el => {
+      try { return el.getBBox(); } catch (_) { return { x: 0, y: 0, width: 0, height: 0 }; }
+    };
+
+    // Canvas dimensions
+    const cw = parseFloat(this.svg.getAttribute('viewBox')?.split(' ')[2] || this.baseWidth);
+    const ch = parseFloat(this.svg.getAttribute('viewBox')?.split(' ')[3] || this.baseHeight);
+
+    selected.forEach(el => {
+      const bb = getBBox(el);
+      if (!bb) return;
+      if (alignment === 'left')   { el.setAttribute('x', 0); }
+      else if (alignment === 'center-h') { el.setAttribute('x', (cw - bb.width) / 2); }
+      else if (alignment === 'right')  { el.setAttribute('x', cw - bb.width); }
+      else if (alignment === 'top')    { el.setAttribute('y', 0); }
+      else if (alignment === 'center-v') { el.setAttribute('y', (ch - bb.height) / 2); }
+      else if (alignment === 'bottom') { el.setAttribute('y', ch - bb.height); }
+    });
+
+    this.triggerAutoSave();
+    window.sigmaApp && window.sigmaApp.showNotification(`Aligned: ${alignment}`, 'success');
+  }
+
+  // --- Colour Palette Fill Presets (Inkscape / LibreOffice Draw Material Palette) ---
+  applyColourPreset(presetName) {
+    const presets = {
+      'material-red':      { stroke: '#c62828', fill: '#ef9a9a' },
+      'material-blue':     { stroke: '#1565c0', fill: '#90caf9' },
+      'material-green':    { stroke: '#2e7d32', fill: '#a5d6a7' },
+      'material-amber':    { stroke: '#e65100', fill: '#ffe082' },
+      'material-purple':   { stroke: '#4a148c', fill: '#ce93d8' },
+      'monochrome-dark':   { stroke: '#1a1a2e', fill: '#16213e' },
+      'monochrome-light':  { stroke: '#cccccc', fill: '#f5f5f5' },
+      'neon-cyber':        { stroke: '#00ff88', fill: '#002244' }
+    };
+    const p = presets[presetName];
+    if (!p) return;
+    this.setStrokeColor(p.stroke);
+    this.setFillColor(p.fill);
+    if (this.selectedElement) {
+      this.selectedElement.setAttribute('stroke', p.stroke);
+      this.selectedElement.setAttribute('fill', p.fill);
+      this.triggerAutoSave();
+    }
+    window.sigmaApp && window.sigmaApp.showNotification(`Colour preset "${presetName}" applied`, 'success');
+  }
+
+  // --- Group / Ungroup (Inkscape / LibreOffice Draw Grouping inspired) ---
+  groupSelected() {
+    const selected = this.shapes.filter(s => s.getAttribute('data-selected') === 'true');
+    if (selected.length < 2) {
+      window.sigmaApp && window.sigmaApp.showNotification('Select 2 or more shapes to group', 'info');
+      return;
+    }
+    const g = document.createElementNS('http://www.w3.org/2000/svg', 'g');
+    g.setAttribute('data-group', 'true');
+    g.setAttribute('data-layer', selected[0].getAttribute('data-layer') || '');
+    selected.forEach(el => {
+      this.svg.removeChild(el);
+      this.shapes = this.shapes.filter(s => s !== el);
+      g.appendChild(el);
+    });
+    this.svg.appendChild(g);
+    this.shapes.push(g);
+    this.triggerAutoSave();
+    window.sigmaApp && window.sigmaApp.showNotification(`${selected.length} shapes grouped`, 'success');
+    return g;
+  }
+
+  ungroupSelected() {
+    const group = this.selectedElement;
+    if (!group || group.getAttribute('data-group') !== 'true') {
+      window.sigmaApp && window.sigmaApp.showNotification('Select a group first', 'info');
+      return;
+    }
+    const children = Array.from(group.children);
+    children.forEach(child => {
+      group.removeChild(child);
+      this.svg.appendChild(child);
+      this.shapes.push(child);
+    });
+    this.svg.removeChild(group);
+    this.shapes = this.shapes.filter(s => s !== group);
+    this.selectedElement = null;
+    this.triggerAutoSave();
+    window.sigmaApp && window.sigmaApp.showNotification('Group ungrouped', 'success');
+  }
+
   triggerAutoSave() {
     if (this._saveTimer) clearTimeout(this._saveTimer);
     this._saveTimer = setTimeout(async () => {

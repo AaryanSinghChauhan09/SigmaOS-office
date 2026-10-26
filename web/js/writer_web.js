@@ -13,6 +13,9 @@ class WriterWeb {
     this.onWordCountChange = options.onWordCountChange || null;
     this._saveTimer = null;
     this._findReplacePanel = null;
+    this.comments = [];
+    this.formatPainterActive = false;
+    this.copiedFormat = null;
     this.setupListeners();
   }
 
@@ -384,6 +387,293 @@ class WriterWeb {
     if (this.onWordCountChange) this.onWordCountChange(wc, cc);
   }
 
+  // --- Document Comments & Annotations (Google Docs / MS Word inspired) ---
+  addComment(text = null, author = 'Reviewer') {
+    const sel = window.getSelection();
+    if (!sel || sel.rangeCount === 0 || sel.isCollapsed) {
+      const promptText = prompt('Enter comment for current cursor position:', text || 'Review note');
+      if (!promptText) return;
+      const commentId = 'cmt_' + Date.now();
+      const mark = document.createElement('mark');
+      mark.className = 'doc-comment-anchor';
+      mark.dataset.commentId = commentId;
+      mark.textContent = ' 💬 [Note] ';
+      const range = sel && sel.rangeCount > 0 ? sel.getRangeAt(0) : null;
+      if (range) {
+        range.insertNode(mark);
+      } else {
+        this.editor.appendChild(mark);
+      }
+      this.comments.push({
+        id: commentId,
+        author: author,
+        text: promptText,
+        createdAt: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+        resolved: false,
+        snippet: '[Inline Marker]'
+      });
+      this.renderComments();
+      this.triggerAutoSave();
+      window.sigmaApp && window.sigmaApp.showNotification('Comment added', 'success');
+      return commentId;
+    }
+
+    const range = sel.getRangeAt(0);
+    const selectedText = range.toString().trim() || 'Selected passage';
+    const commentText = text || prompt(`Comment on "${selectedText.slice(0, 25)}...":`, 'Please review');
+    if (!commentText) return;
+
+    const commentId = 'cmt_' + Date.now();
+    const mark = document.createElement('mark');
+    mark.className = 'doc-comment-anchor';
+    mark.dataset.commentId = commentId;
+    mark.title = `${author}: ${commentText}`;
+
+    try {
+      range.surroundContents(mark);
+    } catch (_) {
+      const contents = range.extractContents();
+      mark.appendChild(contents);
+      range.insertNode(mark);
+    }
+
+    this.comments.push({
+      id: commentId,
+      author: author,
+      text: commentText,
+      createdAt: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+      resolved: false,
+      snippet: selectedText.slice(0, 40)
+    });
+
+    this.renderComments();
+    this.triggerAutoSave();
+    window.sigmaApp && window.sigmaApp.showNotification('Comment attached', 'success');
+    return commentId;
+  }
+
+  resolveComment(commentId) {
+    const cmt = this.comments.find(c => c.id === commentId);
+    if (!cmt) return;
+    cmt.resolved = !cmt.resolved;
+    const mark = this.editor.querySelector(`mark[data-comment-id="${commentId}"]`);
+    if (mark) {
+      if (cmt.resolved) mark.classList.add('comment-resolved');
+      else mark.classList.remove('comment-resolved');
+    }
+    this.renderComments();
+    this.triggerAutoSave();
+    window.sigmaApp && window.sigmaApp.showNotification(`Comment marked as ${cmt.resolved ? 'resolved' : 'active'}`, 'info');
+  }
+
+  deleteComment(commentId) {
+    this.comments = this.comments.filter(c => c.id !== commentId);
+    const mark = this.editor.querySelector(`mark[data-comment-id="${commentId}"]`);
+    if (mark) {
+      while (mark.firstChild) mark.parentNode.insertBefore(mark.firstChild, mark);
+      mark.parentNode.removeChild(mark);
+    }
+    this.renderComments();
+    this.triggerAutoSave();
+    window.sigmaApp && window.sigmaApp.showNotification('Comment deleted', 'info');
+  }
+
+  toggleCommentsPanel() {
+    let panel = document.getElementById('writer-comments-pane');
+    if (!panel) {
+      panel = document.createElement('div');
+      panel.id = 'writer-comments-pane';
+      panel.className = 'writer-comments-sidebar';
+      const container = document.querySelector('.writer-container');
+      if (container) container.appendChild(panel);
+    }
+    const isHidden = panel.style.display === 'none';
+    panel.style.display = isHidden ? 'flex' : 'none';
+    if (isHidden) this.renderComments();
+  }
+
+  renderComments() {
+    let panel = document.getElementById('writer-comments-pane');
+    if (!panel) return;
+    panel.innerHTML = `
+      <div class="comments-header">
+        <h4>Comments (${this.comments.length})</h4>
+        <button class="comments-close-btn" onclick="document.getElementById('writer-comments-pane').style.display='none'">✕</button>
+      </div>
+    `;
+    if (this.comments.length === 0) {
+      panel.innerHTML += `<div class="comment-empty">No comments yet. Select text and click "💬 Comment" to annotate.</div>`;
+      return;
+    }
+    this.comments.forEach(c => {
+      const card = document.createElement('div');
+      card.className = `comment-card ${c.resolved ? 'resolved' : ''}`;
+      card.innerHTML = `
+        <div class="comment-meta">
+          <strong>${this._esc(c.author)}</strong>
+          <span class="comment-time">${c.createdAt}</span>
+        </div>
+        <div class="comment-snippet">"${this._esc(c.snippet)}"</div>
+        <div class="comment-body">${this._esc(c.text)}</div>
+        <div class="comment-actions">
+          <button class="comment-btn-resolve">${c.resolved ? '↩ Reopen' : '✓ Resolve'}</button>
+          <button class="comment-btn-delete">🗑 Delete</button>
+        </div>
+      `;
+      card.querySelector('.comment-btn-resolve').onclick = () => this.resolveComment(c.id);
+      card.querySelector('.comment-btn-delete').onclick = () => this.deleteComment(c.id);
+      card.onclick = (e) => {
+        if (e.target.tagName !== 'BUTTON') {
+          const mark = this.editor.querySelector(`mark[data-comment-id="${c.id}"]`);
+          if (mark) {
+            mark.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            mark.classList.add('comment-flash');
+            setTimeout(() => mark.classList.remove('comment-flash'), 1200);
+          }
+        }
+      };
+      panel.appendChild(card);
+    });
+  }
+
+  // --- Document Statistics & Readability Inspector (LibreOffice / MS Word inspired) ---
+  showDocumentStats() {
+    const text = this.editor.innerText.trim();
+    const wc = this.getWordCount();
+    const cc = this.getCharacterCount();
+    const ccNoSpace = text.replace(/\s/g, '').length;
+    const paragraphs = (text.split(/\n+/).filter(p => p.trim().length > 0)).length || 1;
+    const sentences = (text.match(/[.!?]+(?:\s|$)/g) || []).length || 1;
+    const wordsPerSentence = Math.round((wc / sentences) * 10) / 10;
+    const readingMin = Math.max(1, Math.ceil(wc / 200));
+    const speakingMin = Math.max(1, Math.ceil(wc / 130));
+
+    // Syllable count estimation
+    const words = text.toLowerCase().match(/[a-z]+/g) || [];
+    let syllables = 0;
+    words.forEach(w => {
+      const syl = w.replace(/(?:[^laeiouy]|ed|es|e)$/, '')
+                   .replace(/^y/, '')
+                   .match(/[aeiouy]{1,2}/g);
+      syllables += syl ? syl.length : 1;
+    });
+    if (syllables < wc) syllables = wc;
+
+    // Flesch Reading Ease Formula: 206.835 - 1.015*(words/sentences) - 84.6*(syllables/words)
+    let flesch = 206.835 - 1.015 * (wc / sentences) - 84.6 * (syllables / Math.max(1, wc));
+    flesch = Math.max(0, Math.min(100, Math.round(flesch)));
+
+    let grade = 'Standard';
+    if (flesch >= 90) grade = 'Very Easy (5th grade)';
+    else if (flesch >= 80) grade = 'Easy (6th grade)';
+    else if (flesch >= 70) grade = 'Fairly Easy (7th grade)';
+    else if (flesch >= 60) grade = 'Standard (8th-9th grade)';
+    else if (flesch >= 50) grade = 'Fairly Difficult (10th-12th grade)';
+    else if (flesch >= 30) grade = 'Difficult (College)';
+    else grade = 'Very Difficult (Graduate)';
+
+    const statsObj = {
+      words: wc,
+      characters: cc,
+      charactersNoSpaces: ccNoSpace,
+      paragraphs,
+      sentences,
+      wordsPerSentence,
+      estimatedReadingTime: `${readingMin} min`,
+      estimatedSpeakingTime: `${speakingMin} min`,
+      fleschReadingEase: flesch,
+      readabilityGrade: grade
+    };
+
+    const modalHtml = `
+      <div id="writer-stats-modal" class="office-modal-backdrop">
+        <div class="office-modal-card">
+          <div class="office-modal-header">
+            <h3>📊 Document Statistics & Readability</h3>
+            <button class="office-modal-close" onclick="document.getElementById('writer-stats-modal').remove()">✕</button>
+          </div>
+          <div class="office-modal-body">
+            <div class="stats-grid">
+              <div class="stat-pill"><span class="stat-num">${wc}</span><span class="stat-lbl">Words</span></div>
+              <div class="stat-pill"><span class="stat-num">${cc}</span><span class="stat-lbl">Characters</span></div>
+              <div class="stat-pill"><span class="stat-num">${ccNoSpace}</span><span class="stat-lbl">Chars (no spaces)</span></div>
+              <div class="stat-pill"><span class="stat-num">${paragraphs}</span><span class="stat-lbl">Paragraphs</span></div>
+              <div class="stat-pill"><span class="stat-num">${sentences}</span><span class="stat-lbl">Sentences</span></div>
+              <div class="stat-pill"><span class="stat-num">${wordsPerSentence}</span><span class="stat-lbl">Avg Words/Sentence</span></div>
+            </div>
+            <hr style="margin:16px 0; border:0; border-top:1px solid var(--border-color);">
+            <div style="font-size:13px; line-height:1.6;">
+              <div>⏱️ <strong>Estimated Reading Time:</strong> ${readingMin} minute(s) (200 wpm)</div>
+              <div>🎙️ <strong>Estimated Speaking Time:</strong> ${speakingMin} minute(s) (130 wpm)</div>
+              <div>📖 <strong>Flesch Reading Ease:</strong> <strong>${flesch}/100</strong> (${grade})</div>
+            </div>
+          </div>
+          <div class="office-modal-footer">
+            <button class="toolbar-btn primary" onclick="document.getElementById('writer-stats-modal').remove()">Close</button>
+          </div>
+        </div>
+      </div>
+    `;
+    const existing = document.getElementById('writer-stats-modal');
+    if (existing) existing.remove();
+    document.body.insertAdjacentHTML('beforeend', modalHtml);
+
+    return statsObj;
+  }
+
+  // --- Format Painter (MS Word / LibreOffice Writer inspired) ---
+  pickFormat() {
+    const sel = window.getSelection();
+    let target = this.editor;
+    if (sel && sel.rangeCount > 0 && !sel.isCollapsed) {
+      target = sel.anchorNode.nodeType === 3 ? sel.anchorNode.parentElement : sel.anchorNode;
+    }
+    const style = window.getComputedStyle(target);
+    this.copiedFormat = {
+      color: style.color,
+      backgroundColor: style.backgroundColor,
+      fontWeight: style.fontWeight,
+      fontStyle: style.fontStyle,
+      fontSize: style.fontSize,
+      fontFamily: style.fontFamily,
+      textDecoration: style.textDecoration
+    };
+    this.formatPainterActive = true;
+    this.editor.style.cursor = 'crosshair';
+    window.sigmaApp && window.sigmaApp.showNotification('Format copied! Select text to apply format.', 'info');
+
+    const onApply = () => {
+      this.applyFormat();
+      this.editor.removeEventListener('mouseup', onApply);
+    };
+    this.editor.addEventListener('mouseup', onApply, { once: true });
+  }
+
+  applyFormat() {
+    if (!this.copiedFormat) return;
+    const sel = window.getSelection();
+    if (sel && sel.rangeCount > 0 && !sel.isCollapsed) {
+      const range = sel.getRangeAt(0);
+      const span = document.createElement('span');
+      Object.assign(span.style, this.copiedFormat);
+      try {
+        range.surroundContents(span);
+      } catch (_) {
+        const contents = range.extractContents();
+        span.appendChild(contents);
+        range.insertNode(span);
+      }
+      this.triggerAutoSave();
+      window.sigmaApp && window.sigmaApp.showNotification('Format applied!', 'success');
+    }
+    this.formatPainterActive = false;
+    this.editor.style.cursor = 'auto';
+  }
+
+  _esc(s) {
+    return String(s || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+  }
+
   // --- Auto-save (LibreOffice Writer AutoRecovery-inspired) ---
   triggerAutoSave(immediate = false) {
     if (this._saveTimer) clearTimeout(this._saveTimer);
@@ -469,6 +759,211 @@ class WriterWeb {
       win.document.close();
       win.print();
     }
+  }
+
+  // --- Document Version History (MS Word Track Changes / Google Docs History inspired) ---
+  captureVersion(label = null) {
+    const tag = label || `v${this._versions ? this._versions.length + 1 : 1} – ${new Date().toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'})}`;
+    if (!this._versions) this._versions = [];
+    this._versions.push({ tag, html: this.editor.innerHTML, ts: Date.now() });
+    if (this._versions.length > 20) this._versions.shift();
+    window.sigmaApp && window.sigmaApp.showNotification(`Version "${tag}" saved`, 'success');
+    return tag;
+  }
+
+  showVersionHistory() {
+    if (!this._versions || this._versions.length === 0) {
+      window.sigmaApp && window.sigmaApp.showNotification('No saved versions yet. Use "📷 Snapshot" to save one.', 'info');
+      return;
+    }
+    const existing = document.getElementById('writer-version-modal');
+    if (existing) existing.remove();
+
+    const rows = this._versions.slice().reverse().map((v, i) => `
+      <tr>
+        <td style="padding:8px 12px; border-bottom:1px solid var(--border-color); font-size:13px;">${this._esc(v.tag)}</td>
+        <td style="padding:8px 12px; border-bottom:1px solid var(--border-color); font-size:11px; color:var(--text-muted);">${new Date(v.ts).toLocaleString()}</td>
+        <td style="padding:8px 12px; border-bottom:1px solid var(--border-color);">
+          <button class="toolbar-btn" onclick="window.writerApp._restoreVersion(${this._versions.length - 1 - i})">↩ Restore</button>
+        </td>
+      </tr>`).join('');
+
+    document.body.insertAdjacentHTML('beforeend', `
+      <div id="writer-version-modal" class="office-modal-backdrop">
+        <div class="office-modal-card" style="min-width:520px;">
+          <div class="office-modal-header">
+            <h3>🕑 Version History</h3>
+            <button class="office-modal-close" onclick="document.getElementById('writer-version-modal').remove()">✕</button>
+          </div>
+          <div class="office-modal-body">
+            <table style="width:100%;border-collapse:collapse;">
+              <thead><tr>
+                <th style="text-align:left;padding:8px 12px;border-bottom:2px solid var(--accent);">Version</th>
+                <th style="text-align:left;padding:8px 12px;border-bottom:2px solid var(--accent);">Date/Time</th>
+                <th style="padding:8px 12px;border-bottom:2px solid var(--accent);"></th>
+              </tr></thead>
+              <tbody>${rows}</tbody>
+            </table>
+          </div>
+          <div class="office-modal-footer">
+            <button class="toolbar-btn primary" onclick="document.getElementById('writer-version-modal').remove()">Close</button>
+          </div>
+        </div>
+      </div>`);
+  }
+
+  _restoreVersion(idx) {
+    const v = this._versions[idx];
+    if (!v) return;
+    this.captureVersion('Before restore');
+    this.editor.innerHTML = v.html;
+    this.updateStats();
+    this.triggerAutoSave();
+    document.getElementById('writer-version-modal')?.remove();
+    window.sigmaApp && window.sigmaApp.showNotification(`Restored: "${v.tag}"`, 'success');
+  }
+
+  // --- Change Tracking / Track-Changes (MS Word / LibreOffice Writer inspired) ---
+  enableTrackChanges(author = 'Author') {
+    this._trackChanges = true;
+    this._trackAuthor = author;
+    this._originalHTML = this.editor.innerHTML;
+    window.sigmaApp && window.sigmaApp.showNotification('Track Changes: ON', 'info');
+  }
+
+  disableTrackChanges() {
+    this._trackChanges = false;
+    window.sigmaApp && window.sigmaApp.showNotification('Track Changes: OFF', 'info');
+  }
+
+  acceptAllChanges() {
+    const marks = this.editor.querySelectorAll('.tracked-insertion');
+    marks.forEach(m => {
+      while (m.firstChild) m.parentNode.insertBefore(m.firstChild, m);
+      m.remove();
+    });
+    this.editor.querySelectorAll('.tracked-deletion').forEach(m => m.remove());
+    this._trackChanges = false;
+    this.triggerAutoSave();
+    window.sigmaApp && window.sigmaApp.showNotification('All changes accepted', 'success');
+  }
+
+  rejectAllChanges() {
+    if (this._originalHTML !== undefined) {
+      this.editor.innerHTML = this._originalHTML;
+      this.updateStats();
+      this.triggerAutoSave();
+    }
+    this._trackChanges = false;
+    window.sigmaApp && window.sigmaApp.showNotification('All changes rejected', 'info');
+  }
+
+  insertTrackedText(text) {
+    const span = document.createElement('span');
+    span.className = 'tracked-insertion';
+    span.title = `Inserted by ${this._trackAuthor || 'Author'}`;
+    span.textContent = text;
+    const sel = window.getSelection();
+    if (sel && sel.rangeCount > 0) {
+      sel.getRangeAt(0).insertNode(span);
+    } else {
+      this.editor.appendChild(span);
+    }
+    this.triggerAutoSave();
+  }
+
+  // --- Page Break (MS Word / LibreOffice inspired) ---
+  insertPageBreak() {
+    const hr = document.createElement('div');
+    hr.className = 'page-break-marker';
+    hr.contentEditable = 'false';
+    hr.innerHTML = '<span>— Page Break —</span>';
+    this.editor.focus();
+    const sel = window.getSelection();
+    if (sel && sel.rangeCount > 0) {
+      const range = sel.getRangeAt(0);
+      range.collapse(false);
+      range.insertNode(hr);
+      range.setStartAfter(hr);
+      range.collapse(true);
+      sel.removeAllRanges();
+      sel.addRange(range);
+    } else {
+      this.editor.appendChild(hr);
+    }
+    this.triggerAutoSave();
+    window.sigmaApp && window.sigmaApp.showNotification('Page break inserted', 'success');
+  }
+
+  // --- Smart AutoCorrect / AutoFormat (LibreOffice Writer AutoCorrect inspired) ---
+  enableAutoCorrect() {
+    if (this._autoCorrectEnabled) return;
+    this._autoCorrectEnabled = true;
+    this._autoCorrectMap = {
+      '(c)': '©', '(r)': '®', '(tm)': '™',
+      '--': '—', '...': '…',
+      ':)': '😊', ':D': '😄', ':P': '😛', ':(':  '😞'
+    };
+    this._autoCorrectHandler = (e) => {
+      if (e.key === ' ' || e.key === 'Enter') {
+        const sel = window.getSelection();
+        if (!sel || sel.rangeCount === 0) return;
+        const range = sel.getRangeAt(0);
+        const node = range.startContainer;
+        if (node.nodeType !== Node.TEXT_NODE) return;
+        const text = node.textContent;
+        for (const [trigger, replacement] of Object.entries(this._autoCorrectMap)) {
+          if (text.slice(-trigger.length) === trigger) {
+            node.textContent = text.slice(0, -trigger.length) + replacement;
+            range.setStart(node, node.textContent.length);
+            range.collapse(true);
+            sel.removeAllRanges();
+            sel.addRange(range);
+            break;
+          }
+        }
+      }
+    };
+    this.editor.addEventListener('keydown', this._autoCorrectHandler);
+    window.sigmaApp && window.sigmaApp.showNotification('AutoCorrect: ON', 'info');
+  }
+
+  disableAutoCorrect() {
+    if (this._autoCorrectHandler) {
+      this.editor.removeEventListener('keydown', this._autoCorrectHandler);
+    }
+    this._autoCorrectEnabled = false;
+    window.sigmaApp && window.sigmaApp.showNotification('AutoCorrect: OFF', 'info');
+  }
+
+  // --- Custom Styles (LibreOffice Writer Paragraph Styles inspired) ---
+  applyParagraphStyle(styleName) {
+    const styles = {
+      'Heading1':       { tag: 'h1', css: 'font-size:2em; font-weight:700; color:var(--accent);' },
+      'Heading2':       { tag: 'h2', css: 'font-size:1.5em; font-weight:600; color:var(--text);' },
+      'Heading3':       { tag: 'h3', css: 'font-size:1.2em; font-weight:600; color:var(--text);' },
+      'Body':           { tag: 'p',  css: 'font-size:14px; line-height:1.7;' },
+      'Preformatted':   { tag: 'pre', css: 'font-family:monospace; font-size:13px; background:var(--surface); padding:12px; border-radius:6px; overflow-x:auto;' },
+      'Quote':          { tag: 'blockquote', css: 'border-left:4px solid var(--accent); padding:8px 16px; margin:8px 0; color:var(--text-muted); font-style:italic;' },
+      'Caption':        { tag: 'p',  css: 'font-size:11px; color:var(--text-muted); text-align:center; font-style:italic;' }
+    };
+    const s = styles[styleName];
+    if (!s) return;
+    const sel = window.getSelection();
+    if (!sel || sel.rangeCount === 0) return;
+    const range = sel.getRangeAt(0);
+    const container = range.commonAncestorContainer;
+    let block = container.nodeType === 3 ? container.parentElement : container;
+    while (block && block !== this.editor && !['P','H1','H2','H3','H4','H5','H6','PRE','BLOCKQUOTE','DIV'].includes(block.tagName)) {
+      block = block.parentElement;
+    }
+    if (!block || block === this.editor) return;
+    const newEl = document.createElement(s.tag);
+    newEl.style.cssText = s.css;
+    newEl.innerHTML = block.innerHTML;
+    block.parentNode.replaceChild(newEl, block);
+    this.triggerAutoSave();
+    window.sigmaApp && window.sigmaApp.showNotification(`Style applied: ${styleName}`, 'success');
   }
 }
 

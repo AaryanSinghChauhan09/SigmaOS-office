@@ -215,6 +215,232 @@ class BaseWeb {
     }
   }
 
+  // --- Table Relationships Manager (MS Access / LibreOffice Base Relationships inspired) ---
+  defineRelationship(fromTable, fromCol, toTable, toCol, type = 'many-to-one') {
+    if (!this._relationships) this._relationships = [];
+    const rel = { id: 'rel_' + Date.now(), fromTable, fromCol, toTable, toCol, type };
+    this._relationships.push(rel);
+    window.sigmaApp && window.sigmaApp.showNotification(`Relationship: ${fromTable}.${fromCol} → ${toTable}.${toCol} (${type})`, 'success');
+    return rel.id;
+  }
+
+  removeRelationship(id) {
+    if (!this._relationships) return;
+    this._relationships = this._relationships.filter(r => r.id !== id);
+    window.sigmaApp && window.sigmaApp.showNotification('Relationship removed', 'info');
+  }
+
+  showRelationshipsPanel() {
+    if (!this._relationships) this._relationships = [];
+    const rels = this._relationships;
+    const rows = rels.length === 0
+      ? '<tr><td colspan="4" style="padding:12px;text-align:center;color:var(--text-muted);">No relationships defined</td></tr>'
+      : rels.map(r => `
+          <tr>
+            <td style="padding:8px 12px;">${this._esc(r.fromTable)}.${this._esc(r.fromCol)}</td>
+            <td style="padding:8px 12px;">→</td>
+            <td style="padding:8px 12px;">${this._esc(r.toTable)}.${this._esc(r.toCol)}</td>
+            <td style="padding:8px 12px;">${this._esc(r.type)}</td>
+            <td style="padding:8px 12px;"><button class="toolbar-btn" onclick="window.baseApp.removeRelationship('${r.id}');document.getElementById('base-rel-modal').remove();window.baseApp.showRelationshipsPanel();">🗑</button></td>
+          </tr>`).join('');
+
+    const tableNames = Object.keys(this.tables);
+    const tableOptions = tableNames.map(n => `<option value="${this._esc(n)}">${this._esc(n)}</option>`).join('');
+
+    document.getElementById('base-rel-modal')?.remove();
+    document.body.insertAdjacentHTML('beforeend', `
+      <div id="base-rel-modal" class="office-modal-backdrop">
+        <div class="office-modal-card" style="min-width:560px;">
+          <div class="office-modal-header">
+            <h3>🔗 Table Relationships</h3>
+            <button class="office-modal-close" onclick="document.getElementById('base-rel-modal').remove()">✕</button>
+          </div>
+          <div class="office-modal-body">
+            <div style="display:flex;gap:8px;margin-bottom:12px;flex-wrap:wrap;align-items:center;">
+              <select id="rel-from-table" class="toolbar-select" title="From Table">${tableOptions}</select>
+              <input id="rel-from-col" class="fr-input" placeholder="From column" style="width:120px;">
+              <span>→</span>
+              <select id="rel-to-table" class="toolbar-select" title="To Table">${tableOptions}</select>
+              <input id="rel-to-col" class="fr-input" placeholder="To column" style="width:120px;">
+              <select id="rel-type" class="toolbar-select">
+                <option value="many-to-one">Many→One</option>
+                <option value="one-to-one">One→One</option>
+                <option value="one-to-many">One→Many</option>
+              </select>
+              <button class="toolbar-btn primary" onclick="window.baseApp.defineRelationship(document.getElementById('rel-from-table').value,document.getElementById('rel-from-col').value,document.getElementById('rel-to-table').value,document.getElementById('rel-to-col').value,document.getElementById('rel-type').value);document.getElementById('base-rel-modal').remove();window.baseApp.showRelationshipsPanel();">+ Add</button>
+            </div>
+            <table style="width:100%;border-collapse:collapse;">
+              <thead><tr>
+                <th style="text-align:left;padding:8px 12px;border-bottom:2px solid var(--accent);">From</th>
+                <th style="padding:8px 12px;border-bottom:2px solid var(--accent);"></th>
+                <th style="text-align:left;padding:8px 12px;border-bottom:2px solid var(--accent);">To</th>
+                <th style="text-align:left;padding:8px 12px;border-bottom:2px solid var(--accent);">Type</th>
+                <th style="padding:8px 12px;border-bottom:2px solid var(--accent);"></th>
+              </tr></thead>
+              <tbody>${rows}</tbody>
+            </table>
+          </div>
+          <div class="office-modal-footer">
+            <button class="toolbar-btn primary" onclick="document.getElementById('base-rel-modal').remove()">Close</button>
+          </div>
+        </div>
+      </div>`);
+  }
+
+  // --- Lookup / JOIN Query (MS Access Query Design / LibreOffice Base Query Wizard inspired) ---
+  joinQuery(leftTable, rightTable, leftKey, rightKey, selectCols = null) {
+    const lt = this.tables[leftTable];
+    const rt = this.tables[rightTable];
+    if (!lt || !rt) {
+      window.sigmaApp && window.sigmaApp.showNotification('One or both tables not found', 'error');
+      return [];
+    }
+    const results = [];
+    lt.rows.forEach(lrow => {
+      rt.rows.forEach(rrow => {
+        if (String(lrow[leftKey]) === String(rrow[rightKey])) {
+          const merged = {};
+          lt.columns.forEach(c => { merged[`${leftTable}.${c.name}`] = lrow[c.name]; });
+          rt.columns.forEach(c => { merged[`${rightTable}.${c.name}`] = rrow[c.name]; });
+          if (selectCols && selectCols.length > 0) {
+            const filtered = {};
+            selectCols.forEach(col => { if (merged[col] !== undefined) filtered[col] = merged[col]; });
+            results.push(filtered);
+          } else {
+            results.push(merged);
+          }
+        }
+      });
+    });
+
+    this.queryResults = results;
+    this.viewMode = 'sql';
+    this.render();
+    window.sigmaApp && window.sigmaApp.showNotification(`JOIN: ${results.length} result(s) from ${leftTable} ⋈ ${rightTable}`, 'success');
+    return results;
+  }
+
+  promptJoinQuery() {
+    const tables = Object.keys(this.tables);
+    if (tables.length < 2) {
+      window.sigmaApp && window.sigmaApp.showNotification('Need at least 2 tables to JOIN', 'info');
+      return;
+    }
+    const left  = prompt(`JOIN: Left table (${tables.join(', ')}):`, tables[0]);
+    const right = prompt(`JOIN: Right table:`, tables[1] || tables[0]);
+    if (!left || !right) return;
+    const leftKey  = prompt(`Left key column from "${left}":`, 'id');
+    const rightKey = prompt(`Right key column from "${right}":`, 'id');
+    if (!leftKey || !rightKey) return;
+    this.joinQuery(left, right, leftKey, rightKey);
+  }
+
+  // --- Form Builder (MS Access Form Design / Odoo View inspired) ---
+  buildFormView(tableName = null) {
+    const tn = tableName || this.activeTable;
+    const table = this.tables[tn];
+    if (!table) return;
+
+    const rowData = table.rows[this.activeRecordIndex] || {};
+    const fields = table.columns.map(col => {
+      const val = rowData[col.name] !== undefined ? rowData[col.name] : '';
+      const inputType = col.type === 'INTEGER' || col.type === 'REAL' ? 'number'
+        : col.type === 'BOOLEAN' ? 'checkbox'
+        : col.type === 'DATE' ? 'date'
+        : 'text';
+
+      if (inputType === 'checkbox') {
+        return `
+          <div class="form-field-row">
+            <label class="form-field-label">${this._esc(col.name)} <span style="font-size:10px;color:var(--text-muted);">(${col.type}${col.primaryKey ? ' 🔑' : ''})</span></label>
+            <input type="checkbox" class="form-field-checkbox" ${val ? 'checked' : ''} data-col="${this._esc(col.name)}">
+          </div>`;
+      }
+      return `
+        <div class="form-field-row">
+          <label class="form-field-label">${this._esc(col.name)} <span style="font-size:10px;color:var(--text-muted);">(${col.type}${col.primaryKey ? ' 🔑' : ''})</span></label>
+          <input type="${inputType}" class="form-field-input" value="${this._esc(String(val))}" data-col="${this._esc(col.name)}" ${col.primaryKey && this.activeRecordIndex < table.rows.length ? 'readonly' : ''}>
+        </div>`;
+    }).join('');
+
+    const isNew = this.activeRecordIndex >= table.rows.length;
+    document.getElementById('base-form-modal')?.remove();
+    document.body.insertAdjacentHTML('beforeend', `
+      <div id="base-form-modal" class="office-modal-backdrop">
+        <div class="office-modal-card" style="min-width:440px;">
+          <div class="office-modal-header">
+            <h3>📋 Form View: ${this._esc(tn)} – Record ${this.activeRecordIndex + 1} / ${table.rows.length} ${isNew ? '(New)' : ''}</h3>
+            <button class="office-modal-close" onclick="document.getElementById('base-form-modal').remove()">✕</button>
+          </div>
+          <div class="office-modal-body" id="base-form-fields" style="display:flex;flex-direction:column;gap:8px;">
+            ${fields}
+          </div>
+          <div class="office-modal-footer" style="justify-content:space-between;">
+            <div style="display:flex;gap:6px;">
+              <button class="toolbar-btn" onclick="window.baseApp.activeRecordIndex=Math.max(0,window.baseApp.activeRecordIndex-1);window.baseApp.buildFormView();document.getElementById('base-form-modal').remove();">◀ Prev</button>
+              <button class="toolbar-btn" onclick="window.baseApp.activeRecordIndex=Math.min(window.baseApp.tables[window.baseApp.activeTable].rows.length-1,window.baseApp.activeRecordIndex+1);window.baseApp.buildFormView();document.getElementById('base-form-modal').remove();">Next ▶</button>
+            </div>
+            <div style="display:flex;gap:6px;">
+              <button class="toolbar-btn primary" onclick="window.baseApp._saveFormView('${tn}',${this.activeRecordIndex})">💾 Save</button>
+              <button class="toolbar-btn" onclick="document.getElementById('base-form-modal').remove()">Close</button>
+            </div>
+          </div>
+        </div>
+      </div>`);
+  }
+
+  _saveFormView(tableName, rowIdx) {
+    const table = this.tables[tableName];
+    if (!table) return;
+    const inputs = document.querySelectorAll('#base-form-fields .form-field-input, #base-form-fields .form-field-checkbox');
+    const rowObj = rowIdx < table.rows.length ? { ...table.rows[rowIdx] } : {};
+    inputs.forEach(inp => {
+      const col = inp.dataset.col;
+      const colDef = table.columns.find(c => c.name === col);
+      if (!colDef) return;
+      let val;
+      if (inp.type === 'checkbox') val = inp.checked;
+      else if (colDef.type === 'INTEGER') val = parseInt(inp.value) || 0;
+      else if (colDef.type === 'REAL') val = parseFloat(inp.value) || 0;
+      else val = inp.value;
+      rowObj[col] = val;
+    });
+    if (rowIdx < table.rows.length) {
+      table.rows[rowIdx] = rowObj;
+    } else {
+      this.insertRow(rowObj);
+    }
+    this.render();
+    this.triggerAutoSave();
+    document.getElementById('base-form-modal')?.remove();
+    window.sigmaApp && window.sigmaApp.showNotification('Record saved via form', 'success');
+  }
+
+  // --- Data Macros (Odoo / Access VBA macro concept: simple rule-based auto-actions) ---
+  addDataMacro(name, tableName, trigger, actionFn) {
+    if (!this._macros) this._macros = {};
+    this._macros[name] = { tableName, trigger, action: actionFn };
+    window.sigmaApp && window.sigmaApp.showNotification(`Macro "${name}" registered for ${tableName} on ${trigger}`, 'info');
+  }
+
+  runMacro(name) {
+    if (!this._macros || !this._macros[name]) {
+      window.sigmaApp && window.sigmaApp.showNotification(`No macro named "${name}"`, 'info');
+      return;
+    }
+    const macro = this._macros[name];
+    const table = this.tables[macro.tableName];
+    if (!table) return;
+    try {
+      macro.action(table, this);
+      this.render();
+      this.triggerAutoSave();
+      window.sigmaApp && window.sigmaApp.showNotification(`Macro "${name}" executed`, 'success');
+    } catch (e) {
+      window.sigmaApp && window.sigmaApp.showNotification(`Macro error: ${e.message}`, 'error');
+    }
+  }
+
   triggerAutoSave() {
     if (this._saveTimer) clearTimeout(this._saveTimer);
     this._saveTimer = setTimeout(async () => {

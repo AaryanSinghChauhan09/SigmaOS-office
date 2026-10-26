@@ -504,6 +504,154 @@ show();
     return String(str || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
   }
 
+  // --- Slide Animation Builder (PowerPoint / LibreOffice Impress Animation Pane inspired) ---
+  addSlideAnimation(slideIdx, elementId, animType = 'fade-in', delay = 0) {
+    const slide = this.slides[slideIdx];
+    if (!slide) return;
+    if (!slide.animations) slide.animations = [];
+    const anim = { id: 'anim_' + Date.now(), elementId, animType, delay };
+    slide.animations.push(anim);
+    this.triggerAutoSave();
+    window.sigmaApp && window.sigmaApp.showNotification(`Animation "${animType}" added (delay: ${delay}ms)`, 'info');
+    return anim.id;
+  }
+
+  removeSlideAnimation(slideIdx, animId) {
+    const slide = this.slides[slideIdx];
+    if (!slide || !slide.animations) return;
+    slide.animations = slide.animations.filter(a => a.id !== animId);
+    this.triggerAutoSave();
+    window.sigmaApp && window.sigmaApp.showNotification('Animation removed', 'info');
+  }
+
+  showAnimationPane() {
+    const slide = this.slides[this.activeSlideIdx];
+    const anims = slide && slide.animations ? slide.animations : [];
+    const rows = anims.length === 0
+      ? '<tr><td colspan="3" style="padding:12px;text-align:center;color:var(--text-muted);">No animations on this slide</td></tr>'
+      : anims.map((a, i) => `
+          <tr>
+            <td style="padding:8px 12px;">${this._esc(a.animType)}</td>
+            <td style="padding:8px 12px;">${a.delay}ms</td>
+            <td style="padding:8px 12px;">
+              <button class="toolbar-btn" onclick="window.impressApp.removeSlideAnimation(${this.activeSlideIdx},'${a.id}');document.getElementById('impress-anim-modal').remove();window.impressApp.showAnimationPane();">🗑</button>
+            </td>
+          </tr>`).join('');
+
+    const animTypes = ['fade-in','fly-from-left','fly-from-bottom','zoom-in','bounce','typewriter'];
+    document.getElementById('impress-anim-modal')?.remove();
+    document.body.insertAdjacentHTML('beforeend', `
+      <div id="impress-anim-modal" class="office-modal-backdrop">
+        <div class="office-modal-card" style="min-width:460px;">
+          <div class="office-modal-header">
+            <h3>🎭 Animation Pane – Slide ${this.activeSlideIdx + 1}</h3>
+            <button class="office-modal-close" onclick="document.getElementById('impress-anim-modal').remove()">✕</button>
+          </div>
+          <div class="office-modal-body">
+            <div style="display:flex;gap:8px;margin-bottom:12px;flex-wrap:wrap;">
+              ${animTypes.map(a => `<button class="toolbar-btn" onclick="window.impressApp.addSlideAnimation(${this.activeSlideIdx},'text-main','${a}',0);document.getElementById('impress-anim-modal').remove();window.impressApp.showAnimationPane();">${a}</button>`).join('')}
+            </div>
+            <table style="width:100%;border-collapse:collapse;">
+              <thead><tr>
+                <th style="text-align:left;padding:8px 12px;border-bottom:2px solid var(--accent);">Animation</th>
+                <th style="text-align:left;padding:8px 12px;border-bottom:2px solid var(--accent);">Delay</th>
+                <th style="padding:8px 12px;border-bottom:2px solid var(--accent);"></th>
+              </tr></thead>
+              <tbody>${rows}</tbody>
+            </table>
+          </div>
+          <div class="office-modal-footer">
+            <button class="toolbar-btn primary" onclick="document.getElementById('impress-anim-modal').remove()">Close</button>
+          </div>
+        </div>
+      </div>`);
+  }
+
+  // --- Outline View (PowerPoint / LibreOffice Impress Outline Mode inspired) ---
+  showOutlineView() {
+    const lines = this.slides.map((s, i) =>
+      `Slide ${i+1}: ${s.title || '(no title)'}\n  ${(s.content || '').split('\n').map(l => '  ' + l).join('\n')}`
+    ).join('\n\n');
+
+    document.getElementById('impress-outline-modal')?.remove();
+    document.body.insertAdjacentHTML('beforeend', `
+      <div id="impress-outline-modal" class="office-modal-backdrop">
+        <div class="office-modal-card" style="min-width:560px;">
+          <div class="office-modal-header">
+            <h3>📝 Outline View</h3>
+            <button class="office-modal-close" onclick="document.getElementById('impress-outline-modal').remove()">✕</button>
+          </div>
+          <div class="office-modal-body">
+            <textarea id="impress-outline-textarea" style="width:100%;height:340px;font-family:monospace;font-size:13px;resize:vertical;background:var(--bg);color:var(--text);border:1px solid var(--border-color);border-radius:6px;padding:12px;">${this._esc(lines)}</textarea>
+            <p style="font-size:12px;color:var(--text-muted);margin-top:8px;">Tip: Edit titles here. Each "Slide N:" line becomes a slide title.</p>
+          </div>
+          <div class="office-modal-footer">
+            <button class="toolbar-btn primary" onclick="window.impressApp._applyOutlineEdit(document.getElementById('impress-outline-textarea').value);document.getElementById('impress-outline-modal').remove();">✓ Apply</button>
+            <button class="toolbar-btn" onclick="document.getElementById('impress-outline-modal').remove()">Cancel</button>
+          </div>
+        </div>
+      </div>`);
+  }
+
+  _applyOutlineEdit(outlineText) {
+    const blocks = outlineText.trim().split(/\nSlide \d+:\s*/);
+    blocks.forEach((block, i) => {
+      const lines = block.split('\n').map(l => l.trim()).filter(Boolean);
+      if (!lines.length) return;
+      const title = lines[0];
+      const content = lines.slice(1).map(l => l.replace(/^\s+/, '')).join('\n');
+      if (!this.slides[i]) this.addSlide();
+      this.slides[i].title = title;
+      this.slides[i].content = content;
+    });
+    this.renderThumbnails();
+    this.renderActiveSlide();
+    this.triggerAutoSave();
+    window.sigmaApp && window.sigmaApp.showNotification('Outline applied to presentation', 'success');
+  }
+
+  // --- Summary Slide Generator (PowerPoint AI Summary inspired) ---
+  generateSummarySlide() {
+    const summaryLines = this.slides.map((s, i) =>
+      `• Slide ${i + 1}: ${(s.title || '').slice(0, 50)}`
+    );
+    const newSlide = {
+      title: 'Presentation Summary',
+      content: summaryLines.join('\n'),
+      notes: 'Auto-generated summary slide',
+      bg: '#0f172a',
+      textColor: '#ffffff',
+      layout: 'content',
+      transition: 'fade',
+      elements: []
+    };
+    this.slides.push(newSlide);
+    this.activeSlideIdx = this.slides.length - 1;
+    this.renderThumbnails();
+    this.renderActiveSlide();
+    this.triggerAutoSave();
+    window.sigmaApp && window.sigmaApp.showNotification('Summary slide generated at the end', 'success');
+  }
+
+  // --- QR Code Embed (Offline SVG-based) ---
+  insertQRCode(text = null) {
+    const qrText = text || prompt('Text or URL for QR code:', 'https://sigmaos.dev');
+    if (!qrText) return;
+    // Simple visual placeholder – encodes presence of a QR element on the slide
+    const slide = this.slides[this.activeSlideIdx];
+    if (!slide) return;
+    if (!slide.elements) slide.elements = [];
+    slide.elements.push({
+      type: 'qr',
+      text: qrText,
+      x: 60, y: 60, w: 120, h: 120,
+      id: 'qr_' + Date.now()
+    });
+    this.renderActiveSlide();
+    this.triggerAutoSave();
+    window.sigmaApp && window.sigmaApp.showNotification(`QR element for "${qrText.slice(0,30)}" added to slide`, 'info');
+  }
+
   triggerAutoSave() {
     if (this._saveTimer) clearTimeout(this._saveTimer);
     this._saveTimer = setTimeout(async () => {

@@ -1245,7 +1245,354 @@ kbd {
   border-right: 3px solid #81c784 !important;
 }
 
-/* Print Media Query */
+/* ================================================================
+   v2.6.0 New Feature Styles
+   ================================================================ */
+
+/* --- Document Comments Sidebar --- */
+.writer-container {
+  position: relative;
+  display: flex;
+  flex-direction: row;
+  gap: 0;
+}
+
+.writer-comments-sidebar {
+  width: 260px;
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  background: var(--surface);
+  border-left: 1px solid var(--border-color);
+  border-radius: 0 8px 8px 0;
+  overflow-y: auto;
+  max-height: 100%;
+  padding: 8px;
+  gap: 8px;
+}
+
+.comments-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 4px 4px 8px;
+  border-bottom: 1px solid var(--border-color);
+}
+
+.comments-header h4 {
+  font-size: 13px;
+  margin: 0;
+  color: var(--accent);
+}
+
+.comments-close-btn {
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: var(--text-muted);
+  font-size: 13px;
+  padding: 2px 6px;
+  border-radius: 4px;
+}
+
+.comments-close-btn:hover { background: var(--hover-bg); }
+
+.comment-empty {
+  font-size: 12px;
+  color: var(--text-muted);
+  padding: 8px;
+  text-align: center;
+  line-height: 1.5;
+}
+
+.comment-card {
+  background: var(--bg);
+  border: 1px solid var(--border-color);
+  border-left: 3px solid var(--accent);
+  border-radius: 6px;
+  padding: 8px 10px;
+  cursor: pointer;
+  transition: box-shadow 0.15s;
+}
+
+.comment-card:hover { box-shadow: 0 2px 8px rgba(0,0,0,0.2); }
+
+.comment-card.resolved {
+  border-left-color: #4ade80;
+  opacity: 0.7;
+}
+
+.comment-meta {
+  display: flex;
+  justify-content: space-between;
+  font-size: 11px;
+  margin-bottom: 4px;
+}
+
+.comment-time {
+  color: var(--text-muted);
+}
+
+.comment-snippet {
+  font-size: 11px;
+  color: var(--text-muted);
+  font-style: italic;
+  margin-bottom: 4px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.comment-body {
+  font-size: 12px;
+  line-height: 1.4;
+  color: var(--text);
+  margin-bottom: 6px;
+}
+
+.comment-actions {
+  display: flex;
+  gap: 4px;
+}
+
+.comment-btn-resolve,
+.comment-btn-delete {
+  font-size: 11px;
+  padding: 2px 8px;
+  border: 1px solid var(--border-color);
+  border-radius: 4px;
+  background: var(--surface);
+  color: var(--text);
+  cursor: pointer;
+}
+
+.comment-btn-resolve:hover { background: #064e3b; color: #ecfdf5; }
+.comment-btn-delete:hover  { background: #7f1d1d; color: #fee2e2; }
+
+/* Comment highlight anchors */
+mark.doc-comment-anchor {
+  background: rgba(251, 191, 36, 0.3);
+  border-bottom: 2px solid #f59e0b;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+
+mark.doc-comment-anchor:hover { background: rgba(251, 191, 36, 0.5); }
+mark.doc-comment-anchor.comment-resolved { background: rgba(74, 222, 128, 0.2); border-color: #4ade80; }
+mark.doc-comment-anchor.comment-flash { background: rgba(251, 191, 36, 0.8); }
+
+/* --- Document Stats Modal --- */
+.stats-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 10px;
+  margin-bottom: 8px;
+}
+
+.stat-pill {
+  background: var(--surface);
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  padding: 10px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+}
+
+.stat-num {
+  font-size: 20px;
+  font-weight: 700;
+  color: var(--accent);
+}
+
+.stat-lbl {
+  font-size: 10px;
+  color: var(--text-muted);
+  text-align: center;
+}
+
+/* --- Track Changes --- */
+.tracked-insertion {
+  background: rgba(74, 222, 128, 0.2);
+  border-bottom: 1px solid #4ade80;
+  cursor: help;
+}
+
+.tracked-deletion {
+  background: rgba(248, 113, 113, 0.2);
+  text-decoration: line-through;
+  color: #f87171;
+}
+
+/* --- Page Break Marker --- */
+.page-break-marker {
+  width: 100%;
+  text-align: center;
+  border-top: 2px dashed var(--border-color);
+  border-bottom: 2px dashed var(--border-color);
+  margin: 16px 0;
+  padding: 4px 0;
+  color: var(--text-muted);
+  font-size: 11px;
+  user-select: none;
+  cursor: not-allowed;
+}
+
+/* --- Freeze Panes (Calc) --- */
+td.frozen-row,
+th.frozen-row {
+  position: sticky;
+  top: 0;
+  z-index: 3;
+  background: var(--surface) !important;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.3);
+}
+
+td.frozen-col,
+th.frozen-col {
+  position: sticky;
+  left: 0;
+  z-index: 2;
+  background: var(--surface) !important;
+  box-shadow: 2px 0 4px rgba(0,0,0,0.2);
+}
+
+td.frozen-corner,
+th.frozen-corner {
+  position: sticky;
+  top: 0;
+  left: 0;
+  z-index: 4;
+  background: var(--surface) !important;
+  box-shadow: 2px 2px 6px rgba(0,0,0,0.3);
+}
+
+/* --- Cell Notes indicator --- */
+td.has-note::after {
+  content: '📝';
+  position: absolute;
+  top: 1px;
+  right: 1px;
+  font-size: 8px;
+  pointer-events: none;
+}
+
+td.has-note {
+  position: relative;
+}
+
+/* --- Office Modal (shared) --- */
+.office-modal-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.6);
+  z-index: 9000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  backdrop-filter: blur(2px);
+}
+
+.office-modal-card {
+  background: var(--bg);
+  border: 1px solid var(--border-color);
+  border-radius: 12px;
+  box-shadow: 0 20px 60px rgba(0,0,0,0.5);
+  display: flex;
+  flex-direction: column;
+  max-height: 80vh;
+  overflow: hidden;
+  min-width: 360px;
+  max-width: 700px;
+  width: 90vw;
+}
+
+.office-modal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 16px 20px 12px;
+  border-bottom: 1px solid var(--border-color);
+}
+
+.office-modal-header h3 {
+  margin: 0;
+  font-size: 15px;
+  color: var(--text);
+}
+
+.office-modal-close {
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: var(--text-muted);
+  font-size: 16px;
+  padding: 4px 8px;
+  border-radius: 4px;
+  line-height: 1;
+}
+
+.office-modal-close:hover { background: var(--hover-bg); color: var(--text); }
+
+.office-modal-body {
+  padding: 16px 20px;
+  overflow-y: auto;
+  flex: 1;
+  line-height: 1.5;
+}
+
+.office-modal-footer {
+  padding: 12px 20px;
+  border-top: 1px solid var(--border-color);
+  display: flex;
+  gap: 8px;
+  justify-content: flex-end;
+}
+
+/* --- Form View Fields (Base / DataCraft) --- */
+.form-field-row {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.form-field-label {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+
+.form-field-input {
+  background: var(--surface);
+  border: 1px solid var(--border-color);
+  border-radius: 6px;
+  padding: 7px 10px;
+  color: var(--text);
+  font-size: 13px;
+  outline: none;
+  transition: border-color 0.15s;
+}
+
+.form-field-input:focus {
+  border-color: var(--accent);
+}
+
+.form-field-input[readonly] {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.form-field-checkbox {
+  width: 18px;
+  height: 18px;
+  accent-color: var(--accent);
+  cursor: pointer;
+}
+
+/* --- Print Media Query --- */
 @media print {
   header.office-header,
   .toolbar,

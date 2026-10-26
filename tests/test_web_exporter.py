@@ -97,6 +97,14 @@ class TestWebExporter(unittest.TestCase):
         self.assertIn("setLineSpacing", writer_code)
         self.assertIn("setPageColor", writer_code)
         self.assertIn("mailMerge", writer_code)
+        self.assertIn("addComment", writer_code)
+        self.assertIn("showDocumentStats", writer_code)
+        self.assertIn("pickFormat", writer_code)
+        self.assertIn("captureVersion", writer_code)
+        self.assertIn("enableTrackChanges", writer_code)
+        self.assertIn("insertPageBreak", writer_code)
+        self.assertIn("enableAutoCorrect", writer_code)
+        self.assertIn("applyParagraphStyle", writer_code)
 
         # Assert Calc Features
         self.assertIn("generatePivotTable", calc_code)
@@ -110,6 +118,12 @@ class TestWebExporter(unittest.TestCase):
         self.assertIn("textToColumns", calc_code)
         self.assertIn("goalSeek", calc_code)
         self.assertIn("setDataValidation", calc_code)
+        self.assertIn("setFreezePanes", calc_code)
+        self.assertIn("autoFill", calc_code)
+        self.assertIn("defineNamedRange", calc_code)
+        self.assertIn("addCellNote", calc_code)
+        self.assertIn("duplicateRow", calc_code)
+        self.assertIn("setPrintArea", calc_code)
 
         # Assert Base Features
         self.assertIn("setViewMode", base_code)
@@ -119,6 +133,10 @@ class TestWebExporter(unittest.TestCase):
         self.assertIn("nextRecord", base_code)
         self.assertIn("relations", base_code)
         self.assertIn("report", base_code)
+        self.assertIn("defineRelationship", base_code)
+        self.assertIn("joinQuery", base_code)
+        self.assertIn("buildFormView", base_code)
+        self.assertIn("addDataMacro", base_code)
 
         # Assert Draw Features
         self.assertIn("sticky", draw_code)
@@ -129,12 +147,21 @@ class TestWebExporter(unittest.TestCase):
         self.assertIn("terminator", draw_code)
         self.assertIn("io", draw_code)
         self.assertIn("dimension", draw_code)
+        self.assertIn("showLayerManager", draw_code)
+        self.assertIn("alignSelected", draw_code)
+        self.assertIn("applyColourPreset", draw_code)
+        self.assertIn("groupSelected", draw_code)
+        self.assertIn("ungroupSelected", draw_code)
 
         # Assert Impress Features
         self.assertIn("startPresenterMode", impress_code)
         self.assertIn("comparison", impress_code)
         self.assertIn("applyMasterTheme", impress_code)
         self.assertIn("startRehearsal", impress_code)
+        self.assertIn("addSlideAnimation", impress_code)
+        self.assertIn("showOutlineView", impress_code)
+        self.assertIn("generateSummarySlide", impress_code)
+        self.assertIn("insertQRCode", impress_code)
 
         # Assert Math Features
         self.assertIn("copyMathML", math_code)

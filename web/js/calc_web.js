@@ -1070,6 +1070,192 @@ class CalcWeb {
     return JSON.stringify(wb, null, 2);
   }
 
+  // --- Freeze Panes (LibreOffice Calc / MS Excel inspired) ---
+  setFreezePanes(rows = 1, cols = 1) {
+    this._freezeRows = rows;
+    this._freezeCols = cols;
+    this.table.querySelectorAll('th, td').forEach(cell => {
+      cell.classList.remove('frozen-row', 'frozen-col', 'frozen-corner');
+    });
+    const allRows = this.table.querySelectorAll('tr');
+    allRows.forEach((tr, rIdx) => {
+      const cells = tr.querySelectorAll('th, td');
+      cells.forEach((cell, cIdx) => {
+        if (rIdx < rows && cIdx < cols) cell.classList.add('frozen-corner');
+        else if (rIdx < rows) cell.classList.add('frozen-row');
+        else if (cIdx < cols) cell.classList.add('frozen-col');
+      });
+    });
+    window.sigmaApp && window.sigmaApp.showNotification(`Freeze panes: ${rows} row(s), ${cols} col(s)`, 'info');
+  }
+
+  unfreezePanes() {
+    this._freezeRows = 0;
+    this._freezeCols = 0;
+    this.table.querySelectorAll('.frozen-row,.frozen-col,.frozen-corner')
+      .forEach(c => c.classList.remove('frozen-row','frozen-col','frozen-corner'));
+    window.sigmaApp && window.sigmaApp.showNotification('Freeze panes removed', 'info');
+  }
+
+  // --- AutoFill Handle (Google Sheets / Excel inspired) ---
+  autoFill(startCoord, endCoord, direction = 'down') {
+    const startCoordParsed = this.parseCoord(startCoord);
+    if (!startCoordParsed) return;
+    const [startRow, startCol] = startCoordParsed;
+    const endCoordParsed = this.parseCoord(endCoord);
+    if (!endCoordParsed) return;
+    const [endRow, endCol] = endCoordParsed;
+
+    const sourceRaw = this.getCellRaw(startCoord);
+    const sourceVal = parseFloat(this.getCellValue(startCoord));
+    const isNumeric = !isNaN(sourceVal);
+    const isFormula = String(sourceRaw || '').startsWith('=');
+
+    let count = 0;
+    if (direction === 'down') {
+      for (let r = startRow + 1; r <= endRow; r++) {
+        const coord = `${this.colName(startCol)}${r}`;
+        if (isFormula) {
+          const offset = r - startRow;
+          const shifted = this._shiftFormulaRows(sourceRaw, offset);
+          this.setCellRaw(coord, shifted);
+        } else if (isNumeric) {
+          this.setCellRaw(coord, String(sourceVal + (r - startRow)));
+        } else {
+          this.setCellRaw(coord, sourceRaw || '');
+        }
+        count++;
+      }
+    } else if (direction === 'right') {
+      for (let c = startCol + 1; c <= endCol; c++) {
+        const coord = `${this.colName(c)}${startRow}`;
+        if (isFormula) {
+          const offset = c - startCol;
+          const shifted = this._shiftFormulaCols(sourceRaw, offset);
+          this.setCellRaw(coord, shifted);
+        } else if (isNumeric) {
+          this.setCellRaw(coord, String(sourceVal + (c - startCol)));
+        } else {
+          this.setCellRaw(coord, sourceRaw || '');
+        }
+        count++;
+      }
+    }
+    this.recalculateAll();
+    window.sigmaApp && window.sigmaApp.showNotification(`AutoFill: ${count} cell(s) filled`, 'success');
+    return count;
+  }
+
+  _shiftFormulaRows(formula, offset) {
+    return formula.replace(/([A-Z]+)(\d+)/g, (_, col, row) => `${col}${parseInt(row) + offset}`);
+  }
+
+  _shiftFormulaCols(formula, offset) {
+    return formula.replace(/([A-Z]+)(\d+)/g, (_, col, row) => {
+      let colNum = 0;
+      for (let i = 0; i < col.length; i++) colNum = colNum * 26 + (col.charCodeAt(i) - 64);
+      colNum += offset;
+      let newCol = '';
+      let n = colNum;
+      while (n > 0) { newCol = String.fromCharCode(((n - 1) % 26) + 65) + newCol; n = Math.floor((n - 1) / 26); }
+      return `${newCol}${row}`;
+    });
+  }
+
+  // --- Named Ranges (LibreOffice Calc / Excel Name Manager inspired) ---
+  defineNamedRange(name, rangeStr) {
+    if (!this._namedRanges) this._namedRanges = {};
+    const clean = (name || '').trim().replace(/[^A-Za-z0-9_]/g, '');
+    if (!clean || !rangeStr) return;
+    this._namedRanges[clean] = rangeStr.toUpperCase();
+    window.sigmaApp && window.sigmaApp.showNotification(`Named range "${clean}" = ${rangeStr}`, 'info');
+  }
+
+  getNamedRange(name) {
+    return this._namedRanges && this._namedRanges[name];
+  }
+
+  listNamedRanges() {
+    if (!this._namedRanges || Object.keys(this._namedRanges).length === 0) {
+      window.sigmaApp && window.sigmaApp.showNotification('No named ranges defined', 'info');
+      return {};
+    }
+    const lines = Object.entries(this._namedRanges).map(([k,v]) => `${k} → ${v}`).join('\n');
+    alert('Named Ranges:\n\n' + lines);
+    return { ...this._namedRanges };
+  }
+
+  promptNamedRange() {
+    const name  = prompt('Name for this range (e.g. TaxRate):');
+    if (!name) return;
+    const range = prompt('Range reference (e.g. B2:B10):');
+    if (!range) return;
+    this.defineNamedRange(name, range);
+  }
+
+  // --- Cell Notes / Comments (Excel-style cell tooltip notes) ---
+  addCellNote(coord, noteText = null) {
+    const note = noteText || prompt(`Note for ${coord.toUpperCase()}:`);
+    if (!note) return;
+    if (!this._cellNotes) this._cellNotes = {};
+    this._cellNotes[coord.toUpperCase()] = note;
+    const td = this.table.querySelector(`td[data-coord="${coord.toUpperCase()}"]`);
+    if (td) {
+      td.title = note;
+      td.classList.add('has-note');
+    }
+    window.sigmaApp && window.sigmaApp.showNotification(`Note added to ${coord.toUpperCase()}`, 'info');
+  }
+
+  removeCellNote(coord) {
+    if (!this._cellNotes) return;
+    delete this._cellNotes[coord.toUpperCase()];
+    const td = this.table.querySelector(`td[data-coord="${coord.toUpperCase()}"]`);
+    if (td) {
+      td.title = '';
+      td.classList.remove('has-note');
+    }
+    window.sigmaApp && window.sigmaApp.showNotification(`Note removed from ${coord.toUpperCase()}`, 'info');
+  }
+
+  // --- Duplicate Row / Column (LibreOffice Calc inspired) ---
+  duplicateRow(rowNum) {
+    const srcRow = {};
+    for (let c = 0; c < this.numCols; c++) {
+      const srcCoord = `${this.colName(c)}${rowNum}`;
+      const raw = this.getCellRaw(srcCoord);
+      if (raw !== undefined && raw !== '') {
+        srcRow[c] = raw;
+      }
+    }
+    // Shift all rows below down by 1
+    for (let r = this.numRows; r > rowNum; r--) {
+      for (let c = 0; c < this.numCols; c++) {
+        const from = `${this.colName(c)}${r - 1}`;
+        const to   = `${this.colName(c)}${r}`;
+        const raw  = this.getCellRaw(from);
+        if (raw !== undefined && raw !== '') this.setCellRaw(to, raw);
+      }
+    }
+    // Write duplicated row
+    for (const [c, raw] of Object.entries(srcRow)) {
+      this.setCellRaw(`${this.colName(parseInt(c))}${rowNum + 1}`, raw);
+    }
+    this.recalculateAll();
+    window.sigmaApp && window.sigmaApp.showNotification(`Row ${rowNum} duplicated to row ${rowNum + 1}`, 'success');
+  }
+
+  // --- Print Area & Page Setup (LibreOffice Calc Print Range inspired) ---
+  setPrintArea(rangeStr) {
+    this._printArea = rangeStr;
+    window.sigmaApp && window.sigmaApp.showNotification(`Print area set: ${rangeStr}`, 'info');
+  }
+
+  clearPrintArea() {
+    this._printArea = null;
+    window.sigmaApp && window.sigmaApp.showNotification('Print area cleared', 'info');
+  }
+
   triggerAutoSave() {
     if (this._saveTimer) clearTimeout(this._saveTimer);
     this._saveTimer = setTimeout(async () => {
