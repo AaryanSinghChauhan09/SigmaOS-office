@@ -180,6 +180,9 @@ class ImpressWeb {
     } else if (layoutType === 'stat') {
       s.title = '100% OFFLINE';
       s.content = 'Zero External CDN Dependencies · High Performance Chromium Runtime';
+    } else if (layoutType === 'comparison') {
+      s.title = 'Option A vs Option B';
+      s.content = 'Advantages:\n+ Pure local speed\n+ Zero data leakage\n\nTrade-offs:\n- Local storage bound\n- Device specific cache';
     }
     this.renderActiveSlide();
     this.renderThumbnails();
@@ -280,6 +283,86 @@ class ImpressWeb {
 
     document.body.appendChild(overlay);
     if (overlay.requestFullscreen) overlay.requestFullscreen().catch(() => {});
+    render();
+  }
+
+  // --- Presenter Console / Dual Screen Mode (LibreOffice Presenter Console-inspired) ---
+  startPresenterMode() {
+    const overlay = document.createElement('div');
+    overlay.className = 'presenter-console-overlay';
+    let current = this.activeSlideIdx;
+    let elapsedSec = 0;
+    const timerInterval = setInterval(() => {
+      elapsedSec++;
+      const mins = String(Math.floor(elapsedSec / 60)).padStart(2, '0');
+      const secs = String(elapsedSec % 60).padStart(2, '0');
+      const timerEl = overlay.querySelector('#presenter-timer');
+      if (timerEl) timerEl.textContent = `⏱ ${mins}:${secs}`;
+    }, 1000);
+
+    const render = () => {
+      const s = this.slides[current];
+      const nextSlide = this.slides[current + 1];
+      const mins = String(Math.floor(elapsedSec / 60)).padStart(2, '0');
+      const secs = String(elapsedSec % 60).padStart(2, '0');
+      const bgStyle = s.gradient ? `background:${s.gradient}` : `background:${s.bg || '#1e3a5f'}`;
+      const nextBgStyle = nextSlide ? (nextSlide.gradient ? `background:${nextSlide.gradient}` : `background:${nextSlide.bg || '#1e3a5f'}`) : 'background:#11111b';
+
+      overlay.innerHTML = `
+        <div class="presenter-header">
+          <span style="font-weight:700; color:#81c784; font-size:15px;">DeckCraft Presenter Console</span>
+          <span id="presenter-timer" style="font-family:monospace; font-size:16px; color:#4dabf7;">⏱ ${mins}:${secs}</span>
+          <span style="color:var(--text-muted); font-size:13px;">Slide ${current + 1} of ${this.slides.length}</span>
+          <div style="margin-left:auto; display:flex; gap:8px;">
+            <button class="toolbar-btn" id="btn-pres-prev">◀ Prev</button>
+            <button class="toolbar-btn primary" id="btn-pres-next">Next ▶</button>
+            <button class="toolbar-btn" id="btn-pres-close">✕ Exit</button>
+          </div>
+        </div>
+        <div class="presenter-body">
+          <div class="presenter-main-view">
+            <h4 style="color:var(--text-muted); margin-bottom:8px; font-size:12px;">CURRENT SLIDE (AUDIENCE VIEW)</h4>
+            <div class="presenter-slide-card" style="${bgStyle}; color:${s.textColor || '#ffffff'};">
+              <h2 style="font-size:2vw; margin-bottom:12px;">${this._esc(s.title)}</h2>
+              <div style="font-size:1.3vw; line-height:1.6;">${(s.content || '').replace(/\n/g, '<br>')}</div>
+            </div>
+          </div>
+          <div class="presenter-side-column">
+            <div class="presenter-next-preview">
+              <h4 style="color:var(--text-muted); margin-bottom:8px; font-size:12px;">NEXT SLIDE</h4>
+              <div class="presenter-next-card" style="${nextBgStyle}; color:${nextSlide ? (nextSlide.textColor || '#ffffff') : '#666'};">
+                <div style="font-weight:600; font-size:13px;">${nextSlide ? this._esc(nextSlide.title) : '(End of Presentation)'}</div>
+              </div>
+            </div>
+            <div class="presenter-notes-box">
+              <h4 style="color:#81c784; margin-bottom:8px; font-size:12px;">SPEAKER NOTES</h4>
+              <div class="presenter-notes-content">${this._esc(s.notes || '(No notes for this slide)')}</div>
+            </div>
+          </div>
+        </div>
+      `;
+
+      overlay.querySelector('#btn-pres-prev').onclick = prev;
+      overlay.querySelector('#btn-pres-next').onclick = next;
+      overlay.querySelector('#btn-pres-close').onclick = close;
+    };
+
+    const next = () => { if (current + 1 < this.slides.length) { current++; render(); } else close(); };
+    const prev = () => { if (current > 0) { current--; render(); } };
+    const close = () => {
+      clearInterval(timerInterval);
+      if (document.body.contains(overlay)) document.body.removeChild(overlay);
+      window.removeEventListener('keydown', keyHandler);
+    };
+
+    const keyHandler = (e) => {
+      if (e.key === 'Escape') close();
+      else if (e.key === 'ArrowRight' || e.key === ' ') { e.preventDefault(); next(); }
+      else if (e.key === 'ArrowLeft') { e.preventDefault(); prev(); }
+    };
+    window.addEventListener('keydown', keyHandler);
+
+    document.body.appendChild(overlay);
     render();
   }
 

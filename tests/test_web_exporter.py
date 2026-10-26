@@ -68,6 +68,66 @@ class TestWebExporter(unittest.TestCase):
             self.assertTrue(os.path.isfile(os.path.join(out_dir, "js", "writer_web.js")))
             self.assertTrue(os.path.isfile(os.path.join(out_dir, "js", "calc_web.js")))
 
+    def test_offline_subengines_integrity_and_features(self):
+        # Arrange & Act
+        js_dir = os.path.join(WEB_ROOT, "js")
+        with open(os.path.join(js_dir, "writer_web.js"), "r", encoding="utf-8") as f:
+            writer_code = f.read()
+        with open(os.path.join(js_dir, "calc_web.js"), "r", encoding="utf-8") as f:
+            calc_code = f.read()
+        with open(os.path.join(js_dir, "base_web.js"), "r", encoding="utf-8") as f:
+            base_code = f.read()
+        with open(os.path.join(js_dir, "draw_web.js"), "r", encoding="utf-8") as f:
+            draw_code = f.read()
+        with open(os.path.join(js_dir, "impress_web.js"), "r", encoding="utf-8") as f:
+            impress_code = f.read()
+        with open(os.path.join(js_dir, "math_web.js"), "r", encoding="utf-8") as f:
+            math_code = f.read()
+        with open(os.path.join(js_dir, "storage_engine.js"), "r", encoding="utf-8") as f:
+            storage_code = f.read()
+
+        # Assert Writer Features
+        self.assertIn("toggleSplitView", writer_code)
+        self.assertIn("generateTOC", writer_code)
+        self.assertIn("insertFootnote", writer_code)
+        self.assertIn("setPageMargins", writer_code)
+        self.assertIn("insertMathFormula", writer_code)
+
+        # Assert Calc Features
+        self.assertIn("generatePivotTable", calc_code)
+        self.assertIn("applyConditionalFormat", calc_code)
+        self.assertIn("sortRange", calc_code)
+        self.assertIn("MEDIAN", calc_code)
+        self.assertIn("STDEV", calc_code)
+        self.assertIn("NPV", calc_code)
+
+        # Assert Base Features
+        self.assertIn("setViewMode", base_code)
+        self.assertIn("querySQL", base_code)
+        self.assertIn("importCSV", base_code)
+        self.assertIn("firstRecord", base_code)
+        self.assertIn("nextRecord", base_code)
+
+        # Assert Draw Features
+        self.assertIn("sticky", draw_code)
+        self.assertIn("highlighter", draw_code)
+        self.assertIn("connector", draw_code)
+        self.assertIn("zoomIn", draw_code)
+        self.assertIn("zoomOut", draw_code)
+
+        # Assert Impress Features
+        self.assertIn("startPresenterMode", impress_code)
+        self.assertIn("comparison", impress_code)
+
+        # Assert Math Features
+        self.assertIn("copyMathML", math_code)
+        self.assertIn("insertIntoWriter", math_code)
+
+        # Assert Storage Features
+        self.assertIn("createSnapshot", storage_code)
+        self.assertIn("exportWorkspaceBundle", storage_code)
+        self.assertIn("importWorkspaceBundle", storage_code)
+
 
 if __name__ == "__main__":
     unittest.main()

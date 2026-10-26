@@ -107,17 +107,29 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   const COMMANDS = [
     { label: 'Writer – New Document',   action: () => { window.writerApp.clearDocument(); switchTab('panel-writer'); } },
+    { label: 'Writer – Split Markdown', action: () => { switchTab('panel-writer'); window.writerApp.toggleSplitView(); } },
+    { label: 'Writer – Generate TOC',   action: () => { switchTab('panel-writer'); window.writerApp.generateTOC(); } },
     { label: 'Writer – Insert Callout', action: () => { switchTab('panel-writer'); window.writerApp.insertCallout('NOTE'); } },
     { label: 'Writer – Insert Code',    action: () => { switchTab('panel-writer'); window.writerApp.insertCodeBlock(); } },
     { label: 'Calc – New Spreadsheet',  action: () => { switchTab('panel-calc'); } },
     { label: 'Calc – Generate Chart',   action: () => { switchTab('panel-calc'); showChartModal(); } },
+    { label: 'Calc – Pivot Table',      action: () => { switchTab('panel-calc'); showPivotModal(); } },
+    { label: 'Calc – Sort Ascending',   action: () => { switchTab('panel-calc'); window.calcApp.sortRange('A1:C10', 0, true); } },
+    { label: 'Calc – Sort Descending',  action: () => { switchTab('panel-calc'); window.calcApp.sortRange('A1:C10', 0, false); } },
     { label: 'Impress – Add Slide',     action: () => { switchTab('panel-impress'); window.impressApp.addSlide(); } },
+    { label: 'Impress – Presenter View',action: () => { switchTab('panel-impress'); window.impressApp.startPresenterMode(); } },
+    { label: 'Draw – Sticky Note',      action: () => { switchTab('panel-draw'); window.drawApp.setTool('sticky'); } },
+    { label: 'Draw – Highlighter',      action: () => { switchTab('panel-draw'); window.drawApp.setTool('highlighter'); } },
+    { label: 'Draw – Smart Connector',  action: () => { switchTab('panel-draw'); window.drawApp.setTool('connector'); } },
     { label: 'Draw – Clear Canvas',     action: () => { switchTab('panel-draw'); window.drawApp.clearCanvas(); } },
     { label: 'Draw – Copy to Clipboard',action: () => { switchTab('panel-draw'); window.drawApp.copyToClipboard(); } },
-    { label: 'Math – Insert Fraction',  action: () => { switchTab('panel-math'); window.mathApp.insertTemplate('fraction'); } },
-    { label: 'Math – Insert Integral',  action: () => { switchTab('panel-math'); window.mathApp.insertTemplate('integral'); } },
+    { label: 'Math – Copy MathML',      action: () => { switchTab('panel-math'); window.mathApp.copyMathML(); } },
+    { label: 'Math – Insert in Writer', action: () => { window.mathApp.insertIntoWriter(); } },
     { label: 'Base – Open Database',    action: () => switchTab('panel-base') },
+    { label: 'Base – Form View',        action: () => { switchTab('panel-base'); window.baseApp.setViewMode('form'); } },
+    { label: 'Base – SQL Console',      action: () => { switchTab('panel-base'); window.baseApp.setViewMode('sql'); } },
     { label: 'Base – Add Record',       action: () => { switchTab('panel-base'); window.baseApp.insertRow(); } },
+    { label: 'Workspace – Full Backup', action: () => backupWorkspace() },
     { label: 'Open Documents',          action: () => switchTab('panel-storage') },
     { label: 'Print Writer Document',   action: () => window.writerApp.print() },
     { label: 'Export Writer HTML',      action: () => { const h = window.writerApp.toHTML(); window.storageEngine.saveFileToDisk(h, 'document.html', 'text/html'); } },
@@ -337,6 +349,62 @@ document.addEventListener('DOMContentLoaded', async () => {
   }
 
   document.getElementById('btn-calc-chart')?.addEventListener('click', showChartModal);
+
+  // Pivot Modal & Generation
+  function showPivotModal() {
+    const modal = document.getElementById('pivot-modal');
+    if (modal) modal.style.display = 'flex';
+  }
+  document.getElementById('btn-calc-pivot')?.addEventListener('click', showPivotModal);
+  document.getElementById('btn-pivot-generate')?.addEventListener('click', () => {
+    const r = document.getElementById('pivot-range')?.value || 'A1:C10';
+    const rowOffset = parseInt(document.getElementById('pivot-row-offset')?.value || '0');
+    const valOffset = parseInt(document.getElementById('pivot-val-offset')?.value || '2');
+    const agg = document.getElementById('pivot-agg-func')?.value || 'SUM';
+    window.calcApp.generatePivotTable(r, rowOffset, valOffset, agg);
+    document.getElementById('pivot-modal').style.display = 'none';
+  });
+
+  // Range Sorting & Conditional Formatting
+  document.getElementById('btn-calc-sort-asc')?.addEventListener('click', () => {
+    const r = prompt('Range to sort (e.g. A1:C10):', 'A1:C10');
+    if (r) window.calcApp.sortRange(r, 0, true);
+  });
+  document.getElementById('btn-calc-sort-desc')?.addEventListener('click', () => {
+    const r = prompt('Range to sort (e.g. A1:C10):', 'A1:C10');
+    if (r) window.calcApp.sortRange(r, 0, false);
+  });
+  document.getElementById('btn-calc-cond-fmt')?.addEventListener('click', () => {
+    const r = prompt('Target range (e.g. B1:B10):', 'B1:B10');
+    if (!r) return;
+    const op = prompt('Condition operator (>, <, =, CONTAINS):', '>') || '>';
+    const val = prompt('Threshold value:', '100') || '100';
+    window.calcApp.applyConditionalFormat(r, op, val);
+  });
+
+  // Workspace Backup & Restore
+  async function backupWorkspace() {
+    if (!window.storageEngine) return;
+    const bundle = await window.storageEngine.exportWorkspaceBundle();
+    window.storageEngine.saveFileToDisk(bundle, 'sigmaos-workspace-backup.json', 'application/json');
+    window.sigmaApp.showNotification('Workspace backup exported', 'success');
+  }
+
+  async function restoreWorkspace() {
+    if (!window.storageEngine) return;
+    const file = await window.storageEngine.pickAndOpenFile();
+    if (!file) return;
+    const ok = await window.storageEngine.importWorkspaceBundle(file.content);
+    if (ok) {
+      window.sigmaApp.showNotification('Workspace restored successfully!', 'success');
+      refreshDocumentList();
+    } else {
+      window.sigmaApp.showNotification('Failed to restore workspace', 'info');
+    }
+  }
+
+  document.getElementById('btn-backup-workspace')?.addEventListener('click', backupWorkspace);
+  document.getElementById('btn-restore-workspace')?.addEventListener('click', restoreWorkspace);
 
   // 12. Documents panel
   async function refreshDocumentList() {

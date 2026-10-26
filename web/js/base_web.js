@@ -28,6 +28,10 @@ class BaseWeb {
     this.filterColumn = '';
     this.filterOp = '=';
     this.filterValue = '';
+    this.viewMode = 'grid'; // 'grid' | 'form' | 'sql'
+    this.activeRecordIndex = 0;
+    this.queryResults = null;
+    this.sqlInputText = 'SELECT * FROM users WHERE active = true';
     this._saveTimer = null;
     this.render();
   }
@@ -227,6 +231,181 @@ class BaseWeb {
     }, 1500);
   }
 
+  // --- View Mode & Navigation ---
+  setViewMode(mode) {
+    this.viewMode = mode;
+    this.render();
+  }
+
+  firstRecord() {
+    this.activeRecordIndex = 0;
+    this.render();
+  }
+
+  prevRecord() {
+    const table = this.tables[this.activeTable];
+    if (!table) return;
+    this.activeRecordIndex = Math.max(0, this.activeRecordIndex - 1);
+    this.render();
+  }
+
+  nextRecord() {
+    const table = this.tables[this.activeTable];
+    if (!table) return;
+    this.activeRecordIndex = Math.min(table.rows.length - 1, this.activeRecordIndex + 1);
+    this.render();
+  }
+
+  lastRecord() {
+    const table = this.tables[this.activeTable];
+    if (!table) return;
+    this.activeRecordIndex = Math.max(0, table.rows.length - 1);
+    this.render();
+  }
+
+  // --- SQL Query Engine (LibreOffice Base / MS Access Parity) ---
+  querySQL(sqlStr) {
+    const raw = (sqlStr || this.sqlInputText || '').trim();
+    this.sqlInputText = raw;
+    if (!raw) return [];
+
+    // Simple parser: SELECT [cols] FROM [table] [WHERE col op val] [ORDER BY col [ASC|DESC]] [LIMIT n]
+    const selectMatch = raw.match(/SELECT\s+(.+?)\s+FROM\s+([a-zA-Z0-9_]+)(?:\s+WHERE\s+(.+?))?(?:\s+ORDER\s+BY\s+(.+?))?(?:\s+LIMIT\s+(\d+))?$/i);
+    if (!selectMatch) {
+      window.sigmaApp && window.sigmaApp.showNotification('SQL syntax error (Only SELECT is supported)', 'info');
+      return [];
+    }
+
+    const [, colsPart, tableName, wherePart, orderPart, limitPart] = selectMatch;
+    const table = this.tables[tableName.toLowerCase()];
+    if (!table) {
+      window.sigmaApp && window.sigmaApp.showNotification(`Table '${tableName}' not found`, 'info');
+      return [];
+    }
+
+    let rows = [...table.rows];
+
+    // Filter WHERE
+    if (wherePart) {
+      const wMatch = wherePart.match(/([a-zA-Z0-9_]+)\s*(=|!=|>|<|LIKE)\s*['"]?([^'"]+)['"]?/i);
+      if (wMatch) {
+        const [, col, op, val] = wMatch;
+        rows = rows.filter(r => {
+          const cv = r[col];
+          if (op === '=') return String(cv).toLowerCase() === val.toLowerCase();
+          if (op === '!=') return String(cv).toLowerCase() !== val.toLowerCase();
+          if (op === '>') return parseFloat(cv) > parseFloat(val);
+          if (op === '<') return parseFloat(cv) < parseFloat(val);
+          if (op.toUpperCase() === 'LIKE') return String(cv).toLowerCase().includes(val.replace(/%/g, '').toLowerCase());
+          return true;
+        });
+      }
+    }
+
+    // ORDER BY
+    if (orderPart) {
+      const [orderCol, dir] = orderPart.trim().split(/\s+/);
+      const isDesc = dir && dir.toUpperCase() === 'DESC';
+      rows.sort((a, b) => {
+        const va = a[orderCol], vb = b[orderCol];
+        const na = parseFloat(va), nb = parseFloat(vb);
+        let cmp = 0;
+        if (!isNaN(na) && !isNaN(nb)) cmp = na - nb;
+        else cmp = String(va || '').localeCompare(String(vb || ''));
+        return isDesc ? -cmp : cmp;
+      });
+    }
+
+    // LIMIT
+    if (limitPart) {
+      rows = rows.slice(0, parseInt(limitPart));
+    }
+
+    // Projection
+    let columns = table.columns.map(c => c.name);
+    if (colsPart.trim() !== '*') {
+      const reqCols = colsPart.split(',').map(c => c.trim());
+      columns = reqCols;
+      rows = rows.map(r => {
+        const rowObj = {};
+        reqCols.forEach(c => { rowObj[c] = r[c]; });
+        return rowObj;
+      });
+    }
+
+    this.queryResults = { columns, rows };
+    this.render();
+    window.sigmaApp && window.sigmaApp.showNotification(`Query returned ${rows.length} rows`, 'success');
+    return rows;
+  }
+
+  exportQueryCSV() {
+    if (!this.queryResults || !this.queryResults.rows.length) return;
+    const { columns, rows } = this.queryResults;
+    const header = columns.map(c => `"${c}"`).join(',');
+    const body = rows.map(r => columns.map(c => `"${String(r[c] !== undefined ? r[c] : '').replace(/"/g, '""')}"`).join(',')).join('\n');
+    const csv = `${header}\n${body}`;
+    if (window.storageEngine) {
+      window.storageEngine.saveFileToDisk(csv, `query_result.csv`, 'text/csv');
+      window.sigmaApp && window.sigmaApp.showNotification('Query CSV exported', 'success');
+    }
+  }
+
+  // --- CSV Import ---
+  importCSV(csvText, newTableName = 'imported_data') {
+    if (!csvText || !csvText.trim()) return;
+    const lines = csvText.trim().split(/\r?\n/).map(l => l.trim()).filter(l => l.length > 0);
+    if (lines.length < 2) return;
+
+    const parseLine = (line) => {
+      const res = []; let inQ = false, cur = '';
+      for (let i = 0; i < line.length; i++) {
+        const c = line[i];
+        if (c === '"') {
+          if (inQ && line[i + 1] === '"') { cur += '"'; i++; }
+          else inQ = !inQ;
+        } else if (c === ',' && !inQ) {
+          res.push(cur.trim()); cur = '';
+        } else { cur += c; }
+      }
+      res.push(cur.trim());
+      return res;
+    };
+
+    const header = parseLine(lines[0]);
+    const firstRow = parseLine(lines[1]);
+    const columns = header.map((name, i) => {
+      const cleanName = name.replace(/[^a-zA-Z0-9_]/g, '_').toLowerCase() || `col_${i + 1}`;
+      const sampleVal = firstRow[i] || '';
+      let type = 'TEXT';
+      if (/^-?\d+$/.test(sampleVal)) type = 'INTEGER';
+      else if (/^-?\d+\.\d+$/.test(sampleVal)) type = 'REAL';
+      else if (/^(true|false)$/i.test(sampleVal)) type = 'BOOLEAN';
+      return { name: cleanName, type: type, primaryKey: i === 0 };
+    });
+
+    const rows = [];
+    for (let i = 1; i < lines.length; i++) {
+      const vals = parseLine(lines[i]);
+      const row = {};
+      columns.forEach((col, cIdx) => {
+        let rawVal = vals[cIdx] !== undefined ? vals[cIdx] : '';
+        if (col.type === 'INTEGER') row[col.name] = parseInt(rawVal) || 0;
+        else if (col.type === 'REAL') row[col.name] = parseFloat(rawVal) || 0.0;
+        else if (col.type === 'BOOLEAN') row[col.name] = rawVal.toLowerCase() === 'true';
+        else row[col.name] = rawVal;
+      });
+      rows.push(row);
+    }
+
+    const tName = newTableName.toLowerCase().replace(/[^a-z0-9_]/g, '_');
+    this.tables[tName] = { name: tName, columns, rows };
+    this.activeTable = tName;
+    this.render();
+    this.triggerAutoSave();
+    window.sigmaApp && window.sigmaApp.showNotification(`Imported ${rows.length} rows into '${tName}'`, 'success');
+  }
+
   // --- UI Rendering ---
   render() {
     if (!this.container) return;
@@ -234,27 +413,15 @@ class BaseWeb {
     const tableNames = Object.keys(this.tables);
     const rows = this.getFilteredRows();
 
-    let html = `
-      <div class="base-container">
-        <!-- Tables Ribbon -->
-        <div class="base-ribbon">
-          <div class="base-tables-list">
-            ${tableNames.map(t => `
-              <button class="base-table-btn ${t === this.activeTable ? 'active' : ''}" onclick="window.baseApp.switchTable('${t}')">
-                📁 ${t}
-              </button>
-            `).join('')}
-            <button class="base-table-btn new-table" onclick="window.baseApp.promptNewTable()">+ Table</button>
-          </div>
-          <div class="base-actions">
-            <button class="toolbar-btn" onclick="window.baseApp.promptNewColumn()">+ Column</button>
-            <button class="toolbar-btn primary" onclick="window.baseApp.insertRow()">+ Add Record</button>
-            <button class="toolbar-btn" onclick="window.baseApp.exportSQL()">Export .sql</button>
-            <button class="toolbar-btn" onclick="window.baseApp.exportCSV()">Export .csv</button>
-            <button class="toolbar-btn" onclick="window.baseApp.exportDBCF()">Save .dbcf</button>
-          </div>
-        </div>
+    // Guard activeRecordIndex
+    if (table && table.rows.length > 0) {
+      if (this.activeRecordIndex >= table.rows.length) this.activeRecordIndex = table.rows.length - 1;
+      if (this.activeRecordIndex < 0) this.activeRecordIndex = 0;
+    }
 
+    let viewContent = '';
+    if (this.viewMode === 'grid') {
+      viewContent = `
         <!-- Filter & Search Bar -->
         <div class="base-filter-bar">
           <span style="font-size:12px; font-weight:700; color:var(--text-muted);">Filter:</span>
@@ -307,15 +474,119 @@ class BaseWeb {
             </tbody>
           </table>
         </div>
+      `;
+    } else if (this.viewMode === 'form') {
+      const activeRecord = table && table.rows[this.activeRecordIndex] ? table.rows[this.activeRecordIndex] : null;
+      viewContent = `
+        <div class="base-form-view-container">
+          <div class="base-form-nav">
+            <button class="toolbar-btn" onclick="window.baseApp.firstRecord()" title="First Record">⏮ First</button>
+            <button class="toolbar-btn" onclick="window.baseApp.prevRecord()" title="Previous Record">◀ Prev</button>
+            <span class="form-record-indicator">Record ${table && table.rows.length > 0 ? this.activeRecordIndex + 1 : 0} of ${table ? table.rows.length : 0}</span>
+            <button class="toolbar-btn" onclick="window.baseApp.nextRecord()" title="Next Record">Next ▶</button>
+            <button class="toolbar-btn" onclick="window.baseApp.lastRecord()" title="Last Record">Last ⏭</button>
+            <div class="toolbar-divider"></div>
+            <button class="toolbar-btn primary" onclick="window.baseApp.insertRow()" title="Add New Record">+ New Record</button>
+            <button class="toolbar-btn" onclick="window.baseApp.deleteRow(window.baseApp.activeRecordIndex)" title="Delete This Record">🗑 Delete</button>
+          </div>
+          ${activeRecord ? `
+            <div class="base-form-card">
+              <h3 style="margin-bottom:14px; color:#81c784;">Record Details (${table.name})</h3>
+              <div class="base-form-fields">
+                ${table.columns.map(col => `
+                  <div class="base-form-group">
+                    <label class="base-form-label">${col.name} <span class="col-type-tag">${col.type}</span>${col.primaryKey ? ' 🔑' : ''}</label>
+                    <input class="base-form-input" value="${this._esc(activeRecord[col.name] !== undefined ? activeRecord[col.name] : '')}"
+                      onchange="window.baseApp.updateCell(${this.activeRecordIndex}, '${col.name}', this.value)">
+                  </div>
+                `).join('')}
+              </div>
+            </div>
+          ` : `<div style="padding:40px; text-align:center; color:var(--text-muted);">No records in table. Click '+ New Record' to add one.</div>`}
+        </div>
+      `;
+    } else if (this.viewMode === 'sql') {
+      const qCols = this.queryResults ? this.queryResults.columns : [];
+      const qRows = this.queryResults ? this.queryResults.rows : [];
+      viewContent = `
+        <div class="base-sql-container">
+          <div class="base-sql-editor-box">
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
+              <strong style="color:#81c784; font-size:13px;">SQL Query Console</strong>
+              <div>
+                <button class="toolbar-btn primary" onclick="window.baseApp.querySQL(document.getElementById('base-sql-input').value)">▶ Run SQL</button>
+                <button class="toolbar-btn" onclick="window.baseApp.exportQueryCSV()">Export CSV</button>
+              </div>
+            </div>
+            <textarea id="base-sql-input" class="base-sql-textarea" rows="3" spellcheck="false">${this._esc(this.sqlInputText)}</textarea>
+          </div>
+          <div class="base-sql-results">
+            <h4 style="margin:8px 0; color:var(--text-muted); font-size:13px;">Results (${qRows.length} rows)</h4>
+            ${qRows.length > 0 ? `
+              <div class="base-grid-wrap">
+                <table class="base-table">
+                  <thead>
+                    <tr>${qCols.map(c => `<th>${c}</th>`).join('')}</tr>
+                  </thead>
+                  <tbody>
+                    ${qRows.map(r => `
+                      <tr>${qCols.map(c => `<td>${this._esc(r[c] !== undefined ? r[c] : '')}</td>`).join('')}</tr>
+                    `).join('')}
+                  </tbody>
+                </table>
+              </div>
+            ` : `<div style="padding:20px; color:var(--text-muted); font-size:13px;">Execute a SELECT query above to view results.</div>`}
+          </div>
+        </div>
+      `;
+    }
+
+    let html = `
+      <div class="base-container">
+        <!-- Tables Ribbon -->
+        <div class="base-ribbon">
+          <div class="base-tables-list">
+            ${tableNames.map(t => `
+              <button class="base-table-btn ${t === this.activeTable ? 'active' : ''}" onclick="window.baseApp.switchTable('${t}')">
+                📁 ${t}
+              </button>
+            `).join('')}
+            <button class="base-table-btn new-table" onclick="window.baseApp.promptNewTable()">+ Table</button>
+          </div>
+          <div class="base-actions">
+            <div class="base-mode-toggle">
+              <button class="toolbar-btn ${this.viewMode === 'grid' ? 'primary' : ''}" onclick="window.baseApp.setViewMode('grid')" title="Table Grid View">📊 Grid</button>
+              <button class="toolbar-btn ${this.viewMode === 'form' ? 'primary' : ''}" onclick="window.baseApp.setViewMode('form')" title="Single Record Form View">📝 Form</button>
+              <button class="toolbar-btn ${this.viewMode === 'sql' ? 'primary' : ''}" onclick="window.baseApp.setViewMode('sql')" title="SQL Query Console">🔍 SQL</button>
+            </div>
+            <div class="toolbar-divider"></div>
+            <button class="toolbar-btn" onclick="window.baseApp.promptNewColumn()">+ Column</button>
+            <button class="toolbar-btn primary" onclick="window.baseApp.insertRow()">+ Add Record</button>
+            <button class="toolbar-btn" onclick="window.baseApp.promptImportCSV()">Import CSV</button>
+            <button class="toolbar-btn" onclick="window.baseApp.exportSQL()">Export .sql</button>
+            <button class="toolbar-btn" onclick="window.baseApp.exportCSV()">Export .csv</button>
+            <button class="toolbar-btn" onclick="window.baseApp.exportDBCF()">Save .dbcf</button>
+          </div>
+        </div>
+        ${viewContent}
       </div>
     `;
 
     this.container.innerHTML = html;
   }
 
+  promptImportCSV() {
+    const csv = prompt('Paste RFC 4180 CSV contents here:');
+    if (csv) {
+      const name = prompt('New Table Name:', 'imported_table') || 'imported_table';
+      this.importCSV(csv, name);
+    }
+  }
+
   switchTable(name) {
     if (this.tables[name]) {
       this.activeTable = name;
+      this.activeRecordIndex = 0;
       this.filterColumn = '';
       this.filterValue = '';
       this.render();

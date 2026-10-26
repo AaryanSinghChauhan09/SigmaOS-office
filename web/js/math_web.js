@@ -163,6 +163,29 @@ class MathWeb {
     });
   }
 
+  copyMathML() {
+    const mathml = this.toMathML();
+    navigator.clipboard.writeText(mathml).then(() => {
+      window.sigmaApp && window.sigmaApp.showNotification('MathML copied to clipboard!', 'success');
+    }).catch(() => {
+      const ta = document.createElement('textarea');
+      ta.value = mathml; document.body.appendChild(ta); ta.select();
+      document.execCommand('copy'); document.body.removeChild(ta);
+      window.sigmaApp && window.sigmaApp.showNotification('MathML copied!', 'success');
+    });
+  }
+
+  insertIntoWriter() {
+    const latex = this.input ? this.input.value : '';
+    if (!latex.trim()) return;
+    if (window.writerApp) {
+      window.writerApp.insertMathFormula(latex);
+      const writerTab = document.querySelector('[data-target="panel-writer"]');
+      if (writerTab) writerTab.click();
+      window.sigmaApp && window.sigmaApp.showNotification('Formula inserted into WordCraft', 'success');
+    }
+  }
+
   // --- History ---
   _addToHistory(latex) {
     this._history = [latex, ...this._history.filter(f => f !== latex)].slice(0, 10);

@@ -1027,6 +1027,205 @@ kbd {
   font-family: var(--mono-font);
 }
 
+/* Split Markdown Mode */
+.writer-container.split-view-active {
+  display: flex !important;
+  flex-direction: row !important;
+  gap: 16px !important;
+  padding: 16px !important;
+}
+.writer-container.split-view-active .writer-paper {
+  flex: 1 !important;
+  margin: 0 !important;
+  width: auto !important;
+}
+.writer-md-editor {
+  flex: 1;
+  background-color: var(--bg-sidebar);
+  color: var(--text-primary);
+  border: 1px solid var(--border-color);
+  border-radius: 6px;
+  padding: 18px;
+  font-family: var(--mono-font);
+  font-size: 13px;
+  line-height: 1.6;
+  resize: none;
+  outline: none;
+}
+
+/* Presenter Console Overlay */
+.presenter-console-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: var(--bg-dark);
+  z-index: 9999;
+  display: flex;
+  flex-direction: column;
+}
+.presenter-header {
+  background-color: var(--bg-sidebar);
+  border-bottom: 1px solid var(--border-color);
+  padding: 10px 20px;
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+.presenter-body {
+  flex: 1;
+  display: flex;
+  padding: 20px;
+  gap: 20px;
+  overflow: hidden;
+}
+.presenter-main-view {
+  flex: 2;
+  display: flex;
+  flex-direction: column;
+}
+.presenter-slide-card {
+  flex: 1;
+  border-radius: 8px;
+  padding: 40px;
+  box-shadow: 0 8px 24px rgba(0,0,0,0.5);
+  overflow: auto;
+}
+.presenter-side-column {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+.presenter-next-preview {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+}
+.presenter-next-card {
+  flex: 1;
+  border-radius: 6px;
+  padding: 16px;
+  border: 1px solid var(--border-color);
+  box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+}
+.presenter-notes-box {
+  flex: 1;
+  background-color: var(--bg-panel);
+  border: 1px solid var(--border-color);
+  border-radius: 6px;
+  padding: 16px;
+  overflow: auto;
+}
+.presenter-notes-content {
+  font-size: 14px;
+  line-height: 1.6;
+  color: var(--text-primary);
+}
+
+/* Base Form View & SQL Console */
+.base-mode-toggle {
+  display: flex;
+  gap: 2px;
+  background-color: var(--bg-sidebar);
+  padding: 2px;
+  border-radius: 4px;
+  border: 1px solid var(--border-color);
+}
+.base-form-view-container {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  padding: 20px;
+  align-items: center;
+  overflow: auto;
+}
+.base-form-nav {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 20px;
+  background-color: var(--bg-panel);
+  padding: 8px 16px;
+  border-radius: 6px;
+  border: 1px solid var(--border-color);
+}
+.form-record-indicator {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-primary);
+  padding: 0 8px;
+}
+.base-form-card {
+  width: 100%;
+  max-width: 650px;
+  background-color: var(--bg-panel);
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  padding: 24px;
+  box-shadow: 0 8px 24px rgba(0,0,0,0.3);
+}
+.base-form-fields {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+.base-form-group {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.base-form-label {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-muted);
+}
+.base-form-input {
+  background-color: var(--bg-sidebar);
+  border: 1px solid var(--border-color);
+  color: var(--text-primary);
+  border-radius: 4px;
+  padding: 8px 12px;
+  font-size: 13px;
+  outline: none;
+}
+.base-form-input:focus {
+  border-color: var(--accent-green);
+}
+.base-sql-container {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  padding: 16px;
+  gap: 16px;
+  overflow: hidden;
+}
+.base-sql-editor-box {
+  background-color: var(--bg-panel);
+  border: 1px solid var(--border-color);
+  border-radius: 6px;
+  padding: 12px;
+}
+.base-sql-textarea {
+  width: 100%;
+  background-color: var(--bg-sidebar);
+  border: 1px solid var(--border-color);
+  color: #81c784;
+  font-family: var(--mono-font);
+  font-size: 13px;
+  padding: 10px;
+  border-radius: 4px;
+  resize: vertical;
+  outline: none;
+}
+.base-sql-results {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
 /* Print Media Query */
 @media print {
   header.office-header,

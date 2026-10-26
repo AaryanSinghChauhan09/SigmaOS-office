@@ -28,6 +28,10 @@ class DrawWeb {
     this._dragOffsetX = 0;
     this._dragOffsetY = 0;
     this._polyPoints = [];
+    this._highlighterPoints = [];
+    this.zoom = 1.0;
+    this.baseWidth = 900;
+    this.baseHeight = 620;
     this._saveTimer = null;
     this._initDefs();
     this.setupListeners();
@@ -161,6 +165,24 @@ class DrawWeb {
       return;
     }
 
+    if (this.currentTool === 'highlighter') {
+      const pos = this.getMousePos(e);
+      this._highlighterPoints = [[pos.x, pos.y]];
+      this.isDrawing = true;
+      this._saveHistory();
+      this.currentElement = document.createElementNS('http://www.w3.org/2000/svg', 'polyline');
+      this.currentElement.setAttribute('fill', 'none');
+      this.currentElement.setAttribute('stroke', '#ffeb3b');
+      this.currentElement.setAttribute('stroke-opacity', '0.38');
+      this.currentElement.setAttribute('stroke-width', '18');
+      this.currentElement.setAttribute('stroke-linecap', 'round');
+      this.currentElement.setAttribute('stroke-linejoin', 'round');
+      this.currentElement.setAttribute('data-sigma-shape', '1');
+      this.currentElement.setAttribute('points', `${pos.x},${pos.y}`);
+      this.svg.appendChild(this.currentElement);
+      return;
+    }
+
     if (this.currentTool === 'text') return; // handled in dblclick
 
     this.isDrawing = true;
@@ -202,6 +224,35 @@ class DrawWeb {
       el.setAttribute('stroke', this.strokeColor);
       el.setAttribute('stroke-width', this.strokeWidth);
       el.setAttribute('marker-end', 'url(#arrow)');
+    } else if (this.currentTool === 'connector') {
+      el.setAttribute('x1', pos.x); el.setAttribute('y1', pos.y);
+      el.setAttribute('x2', pos.x); el.setAttribute('y2', pos.y);
+      el.setAttribute('stroke', this.strokeColor);
+      el.setAttribute('stroke-width', this.strokeWidth);
+      el.setAttribute('stroke-dasharray', '5,5');
+      el.setAttribute('marker-end', 'url(#arrow)');
+    } else if (this.currentTool === 'sticky') {
+      const g = document.createElementNS(ns, 'g');
+      g.dataset.sigmaTool = 'sticky';
+      g.setAttribute('data-sigma-shape', '1');
+      const rect = document.createElementNS(ns, 'rect');
+      rect.setAttribute('x', pos.x); rect.setAttribute('y', pos.y);
+      rect.setAttribute('width', '130'); rect.setAttribute('height', '130');
+      rect.setAttribute('rx', '6');
+      rect.setAttribute('fill', '#fff59d');
+      rect.setAttribute('stroke', '#fbc02d');
+      rect.setAttribute('stroke-width', '1');
+      rect.style.filter = 'drop-shadow(2px 3px 4px rgba(0,0,0,0.25))';
+      const text = document.createElementNS(ns, 'text');
+      text.setAttribute('x', pos.x + 12);
+      text.setAttribute('y', pos.y + 26);
+      text.setAttribute('font-size', '13');
+      text.setAttribute('fill', '#333333');
+      text.setAttribute('font-family', 'sans-serif');
+      text.textContent = 'Note…';
+      g.appendChild(rect);
+      g.appendChild(text);
+      return g;
     } else if (this.currentTool === 'diamond') {
       const elDiamond = document.createElementNS(ns, 'polygon');
       elDiamond.dataset.sigmaTool = 'diamond';
@@ -235,6 +286,19 @@ class DrawWeb {
       } else if (el.tagName === 'text') {
         el.setAttribute('x', pos.x - this._dragOffsetX);
         el.setAttribute('y', pos.y - this._dragOffsetY);
+      } else if (el.tagName === 'g') {
+        const rect = el.querySelector('rect');
+        const text = el.querySelector('text');
+        if (rect) {
+          const rx = pos.x - this._dragOffsetX;
+          const ry = pos.y - this._dragOffsetY;
+          rect.setAttribute('x', rx);
+          rect.setAttribute('y', ry);
+          if (text) {
+            text.setAttribute('x', rx + 12);
+            text.setAttribute('y', ry + 26);
+          }
+        }
       }
       return;
     }
@@ -250,9 +314,25 @@ class DrawWeb {
     } else if (this.currentTool === 'ellipse') {
       this.currentElement.setAttribute('rx', Math.abs(pos.x - this.startX));
       this.currentElement.setAttribute('ry', Math.abs(pos.y - this.startY));
-    } else if (this.currentTool === 'line' || this.currentTool === 'arrow') {
+    } else if (this.currentTool === 'line' || this.currentTool === 'arrow' || this.currentTool === 'connector') {
       this.currentElement.setAttribute('x2', pos.x);
       this.currentElement.setAttribute('y2', pos.y);
+    } else if (this.currentTool === 'highlighter') {
+      this._highlighterPoints.push([pos.x, pos.y]);
+      this.currentElement.setAttribute('points', this._highlighterPoints.map(p => p.join(',')).join(' '));
+    } else if (this.currentTool === 'sticky') {
+      const rect = this.currentElement.querySelector('rect');
+      const text = this.currentElement.querySelector('text');
+      if (rect) {
+        rect.setAttribute('x', Math.min(this.startX, pos.x));
+        rect.setAttribute('y', Math.min(this.startY, pos.y));
+        rect.setAttribute('width', Math.max(80, Math.abs(pos.x - this.startX)));
+        rect.setAttribute('height', Math.max(80, Math.abs(pos.y - this.startY)));
+      }
+      if (text) {
+        text.setAttribute('x', Math.min(this.startX, pos.x) + 12);
+        text.setAttribute('y', Math.min(this.startY, pos.y) + 26);
+      }
     } else if (this.currentTool === 'diamond') {
       const minX = Math.min(this.startX, pos.x);
       const minY = Math.min(this.startY, pos.y);
@@ -279,6 +359,17 @@ class DrawWeb {
   }
 
   onDblClick(e) {
+    const targetG = e.target.closest('g[data-sigma-tool="sticky"]');
+    if (targetG) {
+      const textEl = targetG.querySelector('text');
+      const newText = prompt('Edit sticky note:', textEl ? textEl.textContent : '');
+      if (newText !== null && textEl) {
+        textEl.textContent = newText;
+        this.triggerAutoSave();
+        return;
+      }
+    }
+
     if (this.currentTool === 'text') {
       const pos = this.getMousePos(e);
       const text = prompt('Enter text:');
@@ -309,6 +400,32 @@ class DrawWeb {
       this._polyPoints = [];
       this.triggerAutoSave();
     }
+  }
+
+  // --- Canvas Zoom Controls ---
+  zoomIn() {
+    this.zoom = Math.min(3.0, Math.round((this.zoom + 0.15) * 100) / 100);
+    this._applyZoom();
+  }
+
+  zoomOut() {
+    this.zoom = Math.max(0.3, Math.round((this.zoom - 0.15) * 100) / 100);
+    this._applyZoom();
+  }
+
+  resetZoom() {
+    this.zoom = 1.0;
+    this._applyZoom();
+  }
+
+  _applyZoom() {
+    const w = this.baseWidth / this.zoom;
+    const h = this.baseHeight / this.zoom;
+    const ox = (this.baseWidth - w) / 2;
+    const oy = (this.baseHeight - h) / 2;
+    this.svg.setAttribute('viewBox', `${ox} ${oy} ${w} ${h}`);
+    const lbl = document.getElementById('draw-zoom-level');
+    if (lbl) lbl.textContent = `${Math.round(this.zoom * 100)}%`;
   }
 
   _selectElement(el) {

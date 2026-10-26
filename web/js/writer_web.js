@@ -116,6 +116,136 @@ class WriterWeb {
     this.execCommand('insertHTML', `<img src="${dataURL}" style="max-width:100%; height:auto; display:block; margin:8px 0;" alt="Inserted image">`);
   }
 
+  // --- Table of Contents Generator (LibreOffice TOC-inspired) ---
+  generateTOC() {
+    const headings = this.editor.querySelectorAll('h1, h2, h3');
+    if (!headings || headings.length === 0) {
+      window.sigmaApp && window.sigmaApp.showNotification('No headings (H1, H2, H3) found for TOC', 'info');
+      return;
+    }
+    let tocHtml = `<div class="writer-toc-block" style="background:#181825; border:1px solid #313244; padding:16px; border-radius:6px; margin:16px 0;">
+      <h4 style="margin:0 0 10px 0; color:#81c784; font-size:15px;">📑 Table of Contents</h4>
+      <ul style="list-style:none; padding-left:4px; margin:0; line-height:1.8;">`;
+    headings.forEach((h, idx) => {
+      const id = h.id || `toc_h_${idx}`;
+      h.id = id;
+      const level = parseInt(h.tagName.substring(1));
+      const indent = (level - 1) * 18;
+      const title = h.innerText.trim() || `Section ${idx + 1}`;
+      tocHtml += `<li style="padding-left:${indent}px; font-size:13px;">
+        <a href="#${id}" style="color:#4dabf7; text-decoration:none;">${level === 1 ? '• ' : '- '}${title}</a>
+      </li>`;
+    });
+    tocHtml += `</ul></div><p><br></p>`;
+    this.execCommand('insertHTML', tocHtml);
+    window.sigmaApp && window.sigmaApp.showNotification('Table of Contents generated', 'success');
+  }
+
+  // --- Footnotes Management (LibreOffice / Academic Style) ---
+  insertFootnote(noteText = 'Footnote reference note') {
+    const existingFootnotes = this.editor.querySelectorAll('.footnote-ref');
+    const fnNum = existingFootnotes.length + 1;
+    const fnId = `footnote_${fnNum}`;
+    const fnRefHtml = `<sup class="footnote-ref" style="color:#81c784; font-weight:bold; cursor:pointer;" title="${noteText}"><a href="#${fnId}" style="text-decoration:none; color:inherit;">[${fnNum}]</a></sup>`;
+    this.execCommand('insertHTML', fnRefHtml);
+
+    // Append to or create footnotes section at document bottom
+    let fnSection = this.editor.querySelector('.writer-footnotes-section');
+    if (!fnSection) {
+      fnSection = document.createElement('div');
+      fnSection.className = 'writer-footnotes-section';
+      fnSection.style.cssText = 'border-top:1px solid #444; margin-top:28px; padding-top:12px; font-size:12px; color:var(--text-muted);';
+      fnSection.innerHTML = '<strong style="color:var(--text-muted);">Footnotes:</strong><ol style="margin-top:6px; padding-left:20px;"></ol>';
+      this.editor.appendChild(fnSection);
+    }
+    const ol = fnSection.querySelector('ol');
+    if (ol) {
+      const li = document.createElement('li');
+      li.id = fnId;
+      li.innerHTML = `${noteText} <a href="#writer-editor" style="color:#4dabf7; text-decoration:none;">↩</a>`;
+      ol.appendChild(li);
+    }
+    this.updateStats();
+    this.triggerAutoSave();
+  }
+
+  // --- MathCraft Formula Insertion ---
+  insertMathFormula(latex = '\\sum_{i=1}^n x_i') {
+    const span = document.createElement('span');
+    span.className = 'math-inline-pill';
+    span.contentEditable = 'false';
+    span.style.cssText = 'display:inline-block; background:#181825; border:1px solid #40a02b; padding:2px 8px; border-radius:4px; font-family:monospace; color:#81c784; margin:0 4px;';
+    span.title = `LaTeX: ${latex}`;
+    span.innerText = `📐 ${latex}`;
+    const sel = window.getSelection();
+    if (sel && sel.rangeCount > 0) {
+      const range = sel.getRangeAt(0);
+      range.deleteContents();
+      range.insertNode(span);
+    } else {
+      this.editor.appendChild(span);
+    }
+    this.updateStats();
+    this.triggerAutoSave();
+  }
+
+  // --- Page Margins Configuration ---
+  setPageMargins(type = 'normal') {
+    // normal: 40px, narrow: 20px, wide: 60px
+    const marginMap = { normal: '40px', narrow: '20px', wide: '70px' };
+    const pad = marginMap[type] || '40px';
+    this.editor.style.padding = pad;
+    window.sigmaApp && window.sigmaApp.showNotification(`Margins set to ${type}`, 'info');
+  }
+
+  // --- Markdown Split View Mode ---
+  toggleSplitView() {
+    const container = document.querySelector('.writer-container');
+    let mdPane = document.getElementById('writer-md-pane');
+    if (!container) return;
+
+    if (mdPane && mdPane.style.display !== 'none') {
+      // Hide split view
+      mdPane.style.display = 'none';
+      container.classList.remove('split-view-active');
+      window.sigmaApp && window.sigmaApp.showNotification('Split view closed', 'info');
+    } else {
+      if (!mdPane) {
+        mdPane = document.createElement('textarea');
+        mdPane.id = 'writer-md-pane';
+        mdPane.className = 'writer-md-editor';
+        mdPane.placeholder = 'Markdown source code…';
+        mdPane.spellcheck = false;
+        container.insertBefore(mdPane, this.editor);
+
+        mdPane.addEventListener('input', () => {
+          this.editor.innerHTML = this.markdownToHTML(mdPane.value);
+          this.updateStats();
+          this.triggerAutoSave();
+        });
+      }
+      mdPane.value = this.toMarkdown();
+      mdPane.style.display = 'block';
+      container.classList.add('split-view-active');
+      window.sigmaApp && window.sigmaApp.showNotification('Markdown split view active', 'info');
+    }
+  }
+
+  markdownToHTML(md) {
+    if (!md) return '<p><br></p>';
+    let html = md
+      .replace(/^### (.*$)/gim, '<h3>$1</h3>')
+      .replace(/^## (.*$)/gim, '<h2>$1</h2>')
+      .replace(/^# (.*$)/gim, '<h1>$1</h1>')
+      .replace(/\*\*(.*?)\*\*/gim, '<strong>$1</strong>')
+      .replace(/\*(.*?)\*/gim, '<em>$1</em>')
+      .replace(/!\[(.*?)\]\((.*?)\)/gim, '<img alt="$1" src="$2" style="max-width:100%;" />')
+      .replace(/\[(.*?)\]\((.*?)\)/gim, '<a href="$2" target="_blank">$1</a>')
+      .replace(/\n\n/gim, '</p><p>')
+      .replace(/^\- (.*$)/gim, '<li>$1</li>');
+    return `<p>${html}</p>`;
+  }
+
   // --- Callouts & Alerts (inspired by GitHub / Notion Callouts) ---
   insertCallout(type = 'NOTE', text = 'Important note content goes here.') {
     const borderColors = { NOTE: '#4dabf7', TIP: '#81c784', WARNING: '#ffb74d', CAUTION: '#e57373', IMPORTANT: '#ba68c8' };

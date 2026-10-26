@@ -559,6 +559,80 @@ class CalcWeb {
       if (fn === 'DEC2BIN') return (Number(this.evalExpr(argList[0])) >>> 0).toString(2);
       if (fn === 'HEX2DEC') return parseInt(String(this.evalExpr(argList[0])), 16);
       if (fn === 'DEC2HEX') return (Number(this.evalExpr(argList[0])) >>> 0).toString(16).toUpperCase();
+
+      // Statistical & Financial Functions (LibreOffice / Gnumeric Parity)
+      if (fn === 'MEDIAN' && argList.length > 0) {
+        let vals = [];
+        argList.forEach(a => {
+          if (a.includes(':')) {
+            const [s, e] = a.split(':');
+            vals.push(...this.getRangeValues(s.trim(), e.trim()).filter(v => typeof v === 'number' && !isNaN(v)));
+          } else {
+            const v = Number(this.evalExpr(a));
+            if (!isNaN(v)) vals.push(v);
+          }
+        });
+        if (vals.length === 0) return 0;
+        vals.sort((a, b) => a - b);
+        const mid = Math.floor(vals.length / 2);
+        return vals.length % 2 !== 0 ? vals[mid] : (vals[mid - 1] + vals[mid]) / 2;
+      }
+
+      if (fn === 'STDEV' && argList.length > 0) {
+        let vals = [];
+        argList.forEach(a => {
+          if (a.includes(':')) {
+            const [s, e] = a.split(':');
+            vals.push(...this.getRangeValues(s.trim(), e.trim()).filter(v => typeof v === 'number' && !isNaN(v)));
+          } else {
+            const v = Number(this.evalExpr(a));
+            if (!isNaN(v)) vals.push(v);
+          }
+        });
+        if (vals.length <= 1) return 0;
+        const mean = vals.reduce((a, b) => a + b, 0) / vals.length;
+        const variance = vals.reduce((a, b) => a + Math.pow(b - mean, 2), 0) / (vals.length - 1);
+        return Math.sqrt(variance);
+      }
+
+      if (fn === 'CONCATENATE' || fn === 'CONCAT') {
+        return argList.map(a => {
+          if (a.includes(':')) {
+            const [s, e] = a.split(':');
+            return this.getRangeValues(s.trim(), e.trim()).join('');
+          }
+          return String(this.evalExpr(a));
+        }).join('');
+      }
+
+      if (fn === 'SUBSTITUTE' && argList.length >= 3) {
+        const text = String(this.evalExpr(argList[0]));
+        const oldText = String(this.evalExpr(argList[1]));
+        const newText = String(this.evalExpr(argList[2]));
+        return text.split(oldText).join(newText);
+      }
+
+      if (fn === 'REPLACE' && argList.length === 4) {
+        const text = String(this.evalExpr(argList[0]));
+        const start = parseInt(this.evalExpr(argList[1])) - 1;
+        const num = parseInt(this.evalExpr(argList[2]));
+        const newText = String(this.evalExpr(argList[3]));
+        return text.slice(0, start) + newText + text.slice(start + num);
+      }
+
+      if (fn === 'NPV' && argList.length >= 2) {
+        const rate = Number(this.evalExpr(argList[0]));
+        let cf = [];
+        for (let i = 1; i < argList.length; i++) {
+          if (argList[i].includes(':')) {
+            const [s, e] = argList[i].split(':');
+            cf.push(...this.getRangeValues(s.trim(), e.trim()).filter(v => typeof v === 'number'));
+          } else {
+            cf.push(Number(this.evalExpr(argList[i])));
+          }
+        }
+        return cf.reduce((acc, val, idx) => acc + val / Math.pow(1 + rate, idx + 1), 0);
+      }
     }
 
     return this.evalExpr(formula.trim());
@@ -689,6 +763,137 @@ class CalcWeb {
       }
     }
     return values;
+  }
+
+  // --- Pivot Table Engine (Excel / LibreOffice Calc Parity) ---
+  generatePivotTable(rangeStr = 'A1:C10', rowColOffset = 0, valColOffset = 2, aggFunc = 'SUM') {
+    if (!rangeStr.includes(':')) return null;
+    const [start, end] = rangeStr.split(':');
+    const s = this.parseCoord(start.trim()), e = this.parseCoord(end.trim());
+    if (!s || !e) return null;
+
+    const minR = Math.min(s[0], e[0]), maxR = Math.max(s[0], e[0]);
+    const minC = Math.min(s[1], e[1]), maxC = Math.max(s[1], e[1]);
+
+    const groups = {};
+    for (let r = minR; r <= maxR; r++) {
+      const rowKey = String(this.getCellValue(`${this.colName(minC + rowColOffset)}${r}`) || '(blank)');
+      const rawVal = parseFloat(this.getCellValue(`${this.colName(minC + valColOffset)}${r}`)) || 0;
+      if (!groups[rowKey]) groups[rowKey] = [];
+      groups[rowKey].push(rawVal);
+    }
+
+    const summary = [];
+    for (const [key, numbers] of Object.entries(groups)) {
+      let metric = 0;
+      if (aggFunc === 'SUM') metric = numbers.reduce((a, b) => a + b, 0);
+      else if (aggFunc === 'COUNT') metric = numbers.length;
+      else if (aggFunc === 'AVERAGE' || aggFunc === 'AVG') metric = numbers.reduce((a, b) => a + b, 0) / (numbers.length || 1);
+      else if (aggFunc === 'MIN') metric = Math.min(...numbers);
+      else if (aggFunc === 'MAX') metric = Math.max(...numbers);
+      summary.push({ key, metric: Math.round(metric * 100) / 100 });
+    }
+
+    // Auto-create a Pivot Sheet
+    const pivotSheetName = `Pivot_${this.activeSheet}`;
+    this.addSheet(pivotSheetName);
+    this.setCellRaw('A1', 'Row Labels');
+    this.setCellRaw('B1', `${aggFunc} of Value`);
+    summary.forEach((item, idx) => {
+      this.setCellRaw(`A${idx + 2}`, item.key);
+      this.setCellRaw(`B${idx + 2}`, String(item.metric));
+    });
+    this.recalculateAll();
+    window.sigmaApp && window.sigmaApp.showNotification(`Pivot table generated in '${pivotSheetName}'`, 'success');
+    return summary;
+  }
+
+  // --- Conditional Formatting ---
+  applyConditionalFormat(rangeStr, op = '>', threshold = 100, bgColor = '#1b3b22', textColor = '#81c784') {
+    if (!rangeStr.includes(':')) return;
+    const [start, end] = rangeStr.split(':');
+    const s = this.parseCoord(start.trim()), e = this.parseCoord(end.trim());
+    if (!s || !e) return;
+
+    let matchCount = 0;
+    for (let r = Math.min(s[0], e[0]); r <= Math.max(s[0], e[0]); r++) {
+      for (let c = Math.min(s[1], e[1]); c <= Math.max(s[1], e[1]); c++) {
+        const coord = `${this.colName(c)}${r}`;
+        const val = this.getCellValue(coord);
+        let match = false;
+        const numVal = parseFloat(val);
+        const targetNum = parseFloat(threshold);
+
+        if (op === '>' && !isNaN(numVal) && !isNaN(targetNum)) match = numVal > targetNum;
+        else if (op === '<' && !isNaN(numVal) && !isNaN(targetNum)) match = numVal < targetNum;
+        else if (op === '=' && String(val).toLowerCase() === String(threshold).toLowerCase()) match = true;
+        else if (op === 'CONTAINS' && String(val).toLowerCase().includes(String(threshold).toLowerCase())) match = true;
+
+        if (match) {
+          matchCount++;
+          if (!this.cellFormats[coord]) this.cellFormats[coord] = {};
+          this.cellFormats[coord].bgColor = bgColor;
+          this.cellFormats[coord].textColor = textColor;
+          const td = this.table.querySelector(`td[data-coord="${coord}"]`);
+          if (td) {
+            td.style.backgroundColor = bgColor;
+            td.style.color = textColor;
+          }
+        }
+      }
+    }
+    window.sigmaApp && window.sigmaApp.showNotification(`Conditional formatting applied to ${matchCount} cells`, 'info');
+    this.triggerAutoSave();
+  }
+
+  clearConditionalFormats() {
+    this.cellFormats = {};
+    this.renderGrid();
+    window.sigmaApp && window.sigmaApp.showNotification('Conditional formatting cleared', 'info');
+  }
+
+  // --- Range Sorting ---
+  sortRange(rangeStr, colOffset = 0, ascending = true) {
+    if (!rangeStr.includes(':')) return;
+    const [start, end] = rangeStr.split(':');
+    const s = this.parseCoord(start.trim()), e = this.parseCoord(end.trim());
+    if (!s || !e) return;
+
+    const minR = Math.min(s[0], e[0]), maxR = Math.max(s[0], e[0]);
+    const minC = Math.min(s[1], e[1]), maxC = Math.max(s[1], e[1]);
+    const targetCol = minC + colOffset;
+
+    // Collect 2D rows
+    const rows = [];
+    for (let r = minR; r <= maxR; r++) {
+      const rowData = [];
+      for (let c = minC; c <= maxC; c++) {
+        rowData.push(this.getCellValue(`${this.colName(c)}${r}`));
+      }
+      rows.push(rowData);
+    }
+
+    // Sort rows based on targetCol offset
+    rows.sort((a, b) => {
+      const va = a[colOffset], vb = b[colOffset];
+      const na = parseFloat(va), nb = parseFloat(vb);
+      let cmp = 0;
+      if (!isNaN(na) && !isNaN(nb)) cmp = na - nb;
+      else cmp = String(va).localeCompare(String(vb));
+      return ascending ? cmp : -cmp;
+    });
+
+    // Write back sorted rows
+    rows.forEach((rowData, rIdx) => {
+      const r = minR + rIdx;
+      rowData.forEach((val, cIdx) => {
+        const coord = `${this.colName(minC + cIdx)}${r}`;
+        this.setCellRaw(coord, String(val));
+      });
+    });
+
+    this.recalculateAll();
+    window.sigmaApp && window.sigmaApp.showNotification(`Range sorted ${ascending ? 'A-Z' : 'Z-A'}`, 'success');
   }
 
   // --- CSV I/O (improved quoted-field handling) ---

@@ -92,6 +92,96 @@ class OfficeStorageEngine {
     });
   }
 
+  // --- Revisions / Document Snapshots ---
+  async createSnapshot(docId, label, data) {
+    if (!this.db) await this.init();
+    return new Promise((resolve, reject) => {
+      const tx = this.db.transaction(['revisions'], 'readwrite');
+      const store = tx.objectStore('revisions');
+      const entry = {
+        docId: docId,
+        label: label || `Snapshot ${new Date().toLocaleTimeString()}`,
+        timestamp: Date.now(),
+        data: data
+      };
+      const req = store.add(entry);
+      req.onsuccess = () => resolve(entry);
+      req.onerror = () => reject(req.error);
+    });
+  }
+
+  async listSnapshots(docId) {
+    if (!this.db) await this.init();
+    return new Promise((resolve, reject) => {
+      const tx = this.db.transaction(['revisions'], 'readonly');
+      const store = tx.objectStore('revisions');
+      const req = store.getAll();
+      req.onsuccess = () => {
+        let revs = (req.result || []).filter(r => r.docId === docId);
+        revs.sort((a, b) => b.timestamp - a.timestamp);
+        resolve(revs);
+      };
+      req.onerror = () => reject(req.error);
+    });
+  }
+
+  async deleteSnapshot(revId) {
+    if (!this.db) await this.init();
+    return new Promise((resolve, reject) => {
+      const tx = this.db.transaction(['revisions'], 'readwrite');
+      const store = tx.objectStore('revisions');
+      const req = store.delete(revId);
+      req.onsuccess = () => resolve(true);
+      req.onerror = () => reject(req.error);
+    });
+  }
+
+  // --- Workspace Backup / Restore ---
+  async exportWorkspaceBundle() {
+    if (!this.db) await this.init();
+    const docs = await this.listDocuments();
+    return new Promise((resolve, reject) => {
+      const tx = this.db.transaction(['revisions'], 'readonly');
+      const store = tx.objectStore('revisions');
+      const req = store.getAll();
+      req.onsuccess = () => {
+        const bundle = {
+          format: 'SigmaOS.WorkspaceBundle',
+          version: '2.4.0',
+          exportedAt: Date.now(),
+          documents: docs,
+          revisions: req.result || []
+        };
+        resolve(JSON.stringify(bundle, null, 2));
+      };
+      req.onerror = () => reject(req.error);
+    });
+  }
+
+  async importWorkspaceBundle(jsonStr) {
+    if (!this.db) await this.init();
+    try {
+      const bundle = typeof jsonStr === 'string' ? JSON.parse(jsonStr) : jsonStr;
+      if (bundle.documents && Array.isArray(bundle.documents)) {
+        for (const doc of bundle.documents) {
+          await this.saveDocument(doc);
+        }
+      }
+      if (bundle.revisions && Array.isArray(bundle.revisions)) {
+        const tx = this.db.transaction(['revisions'], 'readwrite');
+        const store = tx.objectStore('revisions');
+        for (const rev of bundle.revisions) {
+          delete rev.revId; // let autoIncrement assign id
+          store.add(rev);
+        }
+      }
+      return true;
+    } catch (err) {
+      console.error('Workspace import error:', err);
+      return false;
+    }
+  }
+
   // Chromium File System Access API
   async pickAndOpenFile(types = []) {
     if ('showOpenFilePicker' in window) {
