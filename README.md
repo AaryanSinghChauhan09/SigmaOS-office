@@ -1,7 +1,11 @@
 # SigmaOS-office
 
-Unified productivity-suite and style-integration component for SigmaOS, covering
-OpenOffice, LibreOffice, GenOffice, OnlyOffice, and CraftOffice workflows.
+This repository contains Python modules for document, spreadsheet,
+presentation, ODF/OOXML, and office-application bridge workflows. The presence
+of modules named for OpenOffice, LibreOffice, OnlyOffice, or CraftOffice does
+not establish compatibility with those applications. Verify each bridge,
+format round trip, and licensing boundary independently before describing a
+complete office suite.
 
 ## Development
 
