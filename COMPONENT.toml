@@ -1,6 +1,6 @@
 [component]
 name = "SigmaOS-office"
-description = "SigmaOS subsystem component for office"
+description = "Unified productivity suite & style integration (OpenOffice, LibreOffice, GenOffice, OnlyOffice, CraftOffice)"
 version = "0.1.0"
 tier = 5
 
