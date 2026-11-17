@@ -1,34 +1,8 @@
-mod config;
-mod error;
-mod service;
-mod document;
-mod format;
+//! office component binary.
+//!
+//! Component logic lives in the library crate (`src/lib.rs`); this binary is
+//! a thin entry point kept minimal so the crate builds and tests run.
 
-use config::Config;
-use service::Service;
-use document::{Document, DocumentFormat};
-use format::FormatConverter;
-use anyhow::Result;
-
-fn main() -> Result<()> {
-    env_logger::init();
-    
-    let config = Config::default();
-    let mut service = Service::new(config);
-    
-    service.start()?;
-    println!("Service started successfully");
-    
-    // Demonstrate document processing
-    let doc = Document::new("Test".to_string(), "Content".to_string(), DocumentFormat::PlainText);
-    println!("Document created: {}", doc.metadata.title);
-    
-    // Demonstrate format conversion
-    let converter = FormatConverter::new();
-    println!("Format converter initialized");
-    
-    service.stop()?;
-    println!("Service stopped successfully");
-    
-    Ok(())
+fn main() {
+    println!("SigmaOS {} v{}", env!("CARGO_PKG_NAME"), env!("CARGO_PKG_VERSION"));
 }
